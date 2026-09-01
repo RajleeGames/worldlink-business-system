@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block page_name %}Transaction{% endblock %}
+
+{% block content %}
+<div class="page-head no-print tx-detail-head">
+  <div>
+    <span class="eyebrow">Transaction complete</span>
+    <h1>{{ obj.number }}</h1>
+    <p>{{ obj.get_kind_display }} · {{ obj.created_at|date:'d M Y, H:i' }} · {{ obj.created_by.display_name }}</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn btn-secondary" href="{% url 'transaction_create' %}">+ New transaction</a>
+    <button class="btn btn-secondary" type="button" onclick="window.print()">Print receipt</button>
+    <a class="btn btn-secondary" href="{% url 'transaction_list' %}">History</a>
+  </div>
+</div>
+
+{% if request.user.is_company_admin %}
+<div class="tx-detail-metrics no-print">
+  <div class="tx-detail-metric">
+    <span>Revenue</span>
+    <strong>TZS {{ obj.total|money }}</strong>
+  </div>
+  <div class="tx-detail-metric">
+    <span>Product cost</span>
+    <strong>TZS {{ obj.cost_total|money }}</strong>
+  </div>
+  <div class="tx-detail-metric">
+    <span>Gross profit</span>
+    <strong>TZS {{ obj.gross_profit|money }}</strong>
+  </div>
+  <div class="tx-detail-metric">
+    <span>Margin</span>
+    <strong>{{ obj.margin_percent|floatformat:1 }}%</strong>
+  </div>
+</div>
+{% endif %}
+
+<section class="receipt panel tx-receipt">
+  <div class="receipt-head tx-receipt-head">
+    <div class="tx-receipt-company">
+      {% if company.logo %}
+        <img src="{{ company.logo.url }}" alt="{{ company.company_name }}">
+      {% endif %}
+      <div>
+        <h2>{{ company.company_name|default:'WORLDLINK SECURITY SYSTEMS' }}</h2>
+        {% if company.tagline %}<p>{{ company.tagline }}</p>{% endif %}
+        {% if company.phone or company.email %}<p>{{ company.phone }}{% if company.phone and company.email %} · {% endif %}{{ company.email }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="tx-receipt-status">
+      <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span>
+      <strong>{{ obj.number }}</strong>
+    </div>
+  </div>
+
+  <div class="receipt-meta tx-receipt-meta">
+    <div><span>Customer</span><strong>{{ obj.customer|default:'Walk-in Customer' }}</strong></div>
+    <div><span>Transaction type</span><strong>{{ obj.get_kind_display }}</strong></div>
+    <div><span>Date</span><strong>{{ obj.created_at|date:'d M Y, H:i' }}</strong></div>
+    <div><span>Project</span><strong>{{ obj.project|default:'—' }}</strong></div>
+  </div>
+
+  {% if obj.description %}
+  <div class="tx-receipt-note"><span>Note</span>{{ obj.description }}</div>
+  {% endif %}
+
+  <div class="table-wrap tx-receipt-table-wrap">
+    <table class="tx-receipt-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Type</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in obj.lines.all %}
+        <tr>
+          <td>
+            <strong>{{ line.description }}</strong>
+            {% if line.product %}<small>{{ line.product.sku }}{% if line.product.category %} · {{ line.product.category }}{% endif %}</small>{% endif %}
+            {% if line.service and line.service.category %}<small>{{ line.service.category }}</small>{% endif %}
+          </td>
+          <td><span class="tx-line-type-badge {{ line.line_type }}">{{ line.get_line_type_display }}</span></td>
+          <td class="num">{{ line.quantity|floatformat:-2 }}</td>
+          <td class="num">TZS {{ line.unit_price|money }}</td>
+          <td class="num"><strong>TZS {{ line.line_total|money }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tx-receipt-bottom">
+    <div class="tx-payment-summary">
+      <span class="tx-payment-title">Payments received</span>
+      <div class="payment-history">
+        {% for payment in obj.payments.all %}
+        <div>
+          <span>
+            {{ payment.created_at|date:'d M Y H:i' }} · {{ payment.account.name }}
+            {% if payment.reference %}<small>Ref: {{ payment.reference }}</small>{% endif %}
+          </span>
+          <strong>TZS {{ payment.amount|money }}</strong>
+        </div>
+        {% empty %}
+        <div class="empty">No payment received yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="receipt-totals tx-receipt-totals">
+      <div><span>Subtotal</span><strong>TZS {{ obj.subtotal|money }}</strong></div>
+      {% if obj.discount > 0 %}<div><span>Discount</span><strong>− TZS {{ obj.discount|money }}</strong></div>{% endif %}
+      <div class="grand"><span>Total</span><strong>TZS {{ obj.total|money }}</strong></div>
+      <div><span>Paid</span><strong>TZS {{ obj.amount_paid|money }}</strong></div>
+      <div class="tx-balance-row"><span>Balance</span><strong>TZS {{ obj.balance|money }}</strong></div>
+    </div>
+  </div>
+
+  {% if obj.status == 'void' %}
+  <div class="tx-void-notice">
+    <strong>Voided transaction</strong>
+    <span>{{ obj.void_reason }}</span>
+  </div>
+  {% endif %}
+
+  <div class="tx-receipt-footer">
+    <span>Thank you.</span>
+    <span>Recorded by {{ obj.created_by.display_name }}</span>
+  </div>
+</section>
+
+<div class="detail-actions no-print tx-detail-actions">
+  {% if obj.balance > 0 and obj.status != 'void' %}
+    <button class="btn btn-primary" type="button" data-modal-open="payment-modal">+ Add payment</button>
+  {% endif %}
+  {% if request.user.is_company_admin and obj.status != 'void' %}
+    <button class="btn btn-danger" type="button" data-modal-open="void-modal">Void transaction</button>
+  {% endif %}
+</div>
+
+{% if obj.balance > 0 and obj.status != 'void' %}
+<div class="modal-backdrop" data-modal="payment-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>Add payment</h3>
+        <p class="muted">Remaining balance: TZS {{ obj.balance|money }}</p>
+      </div>
+      <button type="button" data-modal-close aria-label="Close">×</button>
+    </div>
+    <form method="post" action="{% url 'payment_add' obj.pk %}">
+      {% csrf_token %}
+      <div class="field">
+        <label>Amount</label>
+        <div class="input-money-wrap"><span>TZS</span><input class="form-control" name="amount" type="number" step="0.01" min="0.01" max="{{ obj.balance }}" required></div>
+      </div>
+      <div class="field">
+        <label>Money account</label>
+        <select class="form-control" name="account" required>
+          <option value="">Select money account</option>
+          {% for account in money_accounts %}<option value="{{ account.pk }}">{{ account.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Reference <span>optional</span></label>
+        <input class="form-control" name="reference" maxlength="120">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button class="btn btn-primary" type="submit">Record payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if request.user.is_company_admin and obj.status != 'void' %}
+<div class="modal-backdrop" data-modal="void-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>Void transaction</h3>
+        <p class="muted">Stock will be restored and financial history will remain auditable.</p>
+      </div>
+      <button type="button" data-modal-close aria-label="Close">×</button>
+    </div>
+    <form method="post" action="{% url 'transaction_void' obj.pk %}">
+      {% csrf_token %}
+      <div class="field">
+        <label>Reason</label>
+        <textarea class="form-control" name="reason" maxlength="255" placeholder="Why is this transaction being voided?" required></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button class="btn btn-danger-solid" type="submit">Void transaction</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block page_name %}New transaction{% endblock %}
+
+{% block content %}
+<div class="page-head tx-page-head">
+  <div>
+    <span class="eyebrow">Sales &amp; services</span>
+    <h1>New transaction</h1>
+    <p>Record products, services or project work in one clean transaction.</p>
+  </div>
+  <div class="head-actions">
+    <span class="tx-shortcut-note"><kbd>F2</kbd> Add item <span>·</span> <kbd>Ctrl</kbd> + <kbd>Enter</kbd> Complete</span>
+    <a class="btn btn-secondary" href="{% url 'transaction_list' %}">Transaction history</a>
+  </div>
+</div>
+
+{% if form.non_field_errors or line_errors %}
+<div class="form-error-box tx-error-box" role="alert">
+  {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+  {% for error in line_errors %}<div>{{ error }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post"
+      class="tx-form"
+      data-transaction-form
+      data-currency="{{ company.currency|default:'TZS' }}"
+      data-is-admin="{% if request.user.is_company_admin %}1{% else %}0{% endif %}">
+  {% csrf_token %}
+  <input type="hidden" name="lines_json" data-transaction-lines-json value="">
+
+  <div class="tx-workspace">
+    <main class="tx-main">
+      <section class="panel tx-section tx-context-card">
+        <div class="tx-section-head">
+          <div>
+            <span class="tx-section-index">01</span>
+            <div>
+              <h2>Transaction details</h2>
+              <p>Choose the work type, customer and project before adding items.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid tx-context-grid">
+          <div class="field">
+            <label for="{{ form.kind.id_for_label }}">Transaction type</label>
+            {{ form.kind }}
+            {{ form.kind.errors }}
+          </div>
+          <div class="field">
+            <div class="field-label-row">
+              <label for="{{ form.customer.id_for_label }}">Customer</label>
+              <a href="{% url 'customer_create' %}" class="field-mini-link">+ New customer</a>
+            </div>
+            {{ form.customer }}
+            {{ form.customer.errors }}
+            <small class="help-text">Walk-in is allowed only when the transaction is fully paid.</small>
+          </div>
+          <div class="field">
+            <label for="{{ form.project.id_for_label }}">Project <span>optional unless type is Project</span></label>
+            {{ form.project }}
+            {{ form.project.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.description.id_for_label }}">Transaction note <span>optional</span></label>
+            {{ form.description }}
+            {{ form.description.errors }}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel tx-section tx-builder-card" data-transaction-builder>
+        <div class="tx-section-head tx-builder-heading">
+          <div>
+            <span class="tx-section-index">02</span>
+            <div>
+              <h2>Products &amp; services</h2>
+              <p>Add as many items as this transaction needs.</p>
+            </div>
+          </div>
+          <span class="tx-line-count" data-line-count>0 items</span>
+        </div>
+
+        <div class="tx-composer">
+          <div class="tx-line-type-tabs" role="tablist" aria-label="Item type">
+            <button type="button" class="tx-line-type is-active" data-line-type="product">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4.5 7.8 12 12l7.5-4.2M12 12v9"/></svg>
+              Product
+            </button>
+            <button type="button" class="tx-line-type" data-line-type="service">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.1 5.1L4 17l3 3 5.6-5.6a4 4 0 0 0 5.1-5.1l-2.2 2.2-3-3z"/></svg>
+              Saved service
+            </button>
+            <button type="button" class="tx-line-type" data-line-type="custom">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Custom item
+            </button>
+          </div>
+
+          <div class="tx-composer-grid">
+            <div class="field tx-catalog-field" data-catalog-field>
+              <label>Find product</label>
+              <div class="tx-catalog-search-wrap">
+                <svg class="tx-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+                <input type="search"
+                       class="form-control tx-catalog-search"
+                       placeholder="Search by name, SKU or category"
+                       autocomplete="off"
+                       data-line-search>
+                <button class="tx-catalog-clear" type="button" aria-label="Clear selection" data-line-clear hidden>×</button>
+              </div>
+              <div class="tx-catalog-results" data-line-results hidden></div>
+              <div class="tx-selected-item" data-selected-item hidden></div>
+            </div>
+
+            <div class="field tx-custom-field" data-custom-line-field hidden>
+              <label>Custom description</label>
+              <input type="text"
+                     class="form-control"
+                     maxlength="255"
+                     placeholder="e.g. Camera troubleshooting and configuration"
+                     data-custom-description>
+            </div>
+
+            <div class="field tx-qty-field">
+              <label>Quantity</label>
+              <input type="number" class="form-control" min="0.01" step="0.01" value="1" inputmode="decimal" data-line-quantity>
+            </div>
+
+            <div class="field tx-price-field">
+              <label>Unit price</label>
+              <div class="input-money-wrap">
+                <span>{{ company.currency|default:'TZS' }}</span>
+                <input type="number" class="form-control" min="0.01" step="0.01" inputmode="decimal" placeholder="0" data-line-price>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="tx-composer-actions">
+            <span class="tx-composer-hint">Add the item after checking quantity and unit price.</span>
+            <button type="button" class="btn btn-primary tx-add-line" data-add-transaction-line>
+              <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Add item
+            </button>
+          </div>
+
+          <div class="tx-inline-error" data-line-builder-error hidden></div>
+        </div>
+
+        <div class="tx-lines-shell">
+          <div class="tx-lines-head" aria-hidden="true">
+            <span>Item</span>
+            <span>Qty</span>
+            <span>Unit price</span>
+            <span>Total</span>
+            <span></span>
+          </div>
+          <div class="tx-lines" data-transaction-lines></div>
+          <div class="tx-lines-empty" data-transaction-lines-empty>
+            <div class="tx-empty-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4.5 7.8 12 12l7.5-4.2M12 12v9"/></svg>
+            </div>
+            <strong>No items added yet</strong>
+            <span>Choose a product, saved service or custom item above.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel tx-section tx-payment-card">
+        <div class="tx-section-head">
+          <div>
+            <span class="tx-section-index">03</span>
+            <div>
+              <h2>Payment</h2>
+              <p>Record what was received now. Any remaining balance becomes customer debt.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid tx-payment-grid">
+          <div class="field">
+            <div class="field-label-row">
+              <label for="{{ form.payment_amount.id_for_label }}">Amount received</label>
+              <button type="button" class="field-mini-button" data-pay-full>Pay full amount</button>
+            </div>
+            <div class="input-money-wrap">
+              <span>{{ company.currency|default:'TZS' }}</span>
+              {{ form.payment_amount }}
+            </div>
+            {{ form.payment_amount.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.account.id_for_label }}">Received into</label>
+            {{ form.account }}
+            {{ form.account.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.reference.id_for_label }}">Payment reference <span>optional</span></label>
+            {{ form.reference }}
+            {{ form.reference.errors }}
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="tx-summary-column">
+      <section class="panel tx-summary-card">
+        <div class="tx-summary-head">
+          <div>
+            <span class="eyebrow">Live summary</span>
+            <h2>Transaction total</h2>
+          </div>
+          <span class="tx-draft-pill">Draft</span>
+        </div>
+
+        <div class="tx-summary-lines">
+          <div><span>Subtotal</span><strong data-summary-subtotal>{{ company.currency|default:'TZS' }} 0</strong></div>
+          <div class="tx-discount-summary">
+            <label for="{{ form.discount.id_for_label }}">Discount</label>
+            <div class="tx-inline-money-input">
+              <span>{{ company.currency|default:'TZS' }}</span>
+              {{ form.discount }}
+            </div>
+          </div>
+          {{ form.discount.errors }}
+          <div class="tx-summary-total"><span>Total</span><strong data-summary-total>{{ company.currency|default:'TZS' }} 0</strong></div>
+          <div><span>Received now</span><strong data-summary-paid>{{ company.currency|default:'TZS' }} 0</strong></div>
+          <div class="tx-summary-balance"><span>Balance after payment</span><strong data-summary-balance>{{ company.currency|default:'TZS' }} 0</strong></div>
+        </div>
+
+        {% if request.user.is_company_admin %}
+        <div class="tx-profit-preview" data-profit-preview>
+          <div class="tx-profit-title">
+            <span>Admin estimate</span>
+            <span class="tx-profit-lock">Internal</span>
+          </div>
+          <div><span>Product cost</span><strong data-summary-cost>{{ company.currency|default:'TZS' }} 0</strong></div>
+          <div><span>Estimated gross profit</span><strong data-summary-profit>{{ company.currency|default:'TZS' }} 0</strong></div>
+          <small>Services/custom work currently carry zero direct product cost.</small>
+        </div>
+        {% endif %}
+
+        <div class="tx-summary-message" data-summary-message>
+          Add at least one item to continue.
+        </div>
+
+        <button class="btn btn-primary btn-block tx-complete-button" type="submit" data-loading-button data-complete-transaction>
+          <span>Complete transaction</span>
+          <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        <a href="{% url 'transaction_list' %}" class="tx-cancel-link">Cancel and return to history</a>
+      </section>
+    </aside>
+  </div>
+
+  <div class="tx-mobile-submit">
+    <div>
+      <span>Total</span>
+      <strong data-mobile-total>{{ company.currency|default:'TZS' }} 0</strong>
+    </div>
+    <button class="btn btn-primary" type="submit">Complete</button>
+  </div>
+</form>
+
+{{ products_catalog|json_script:"transaction-products-data" }}
+{{ services_catalog|json_script:"transaction-services-data" }}
+{{ line_draft|json_script:"transaction-line-draft" }}
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load business_tags %}
+{% block page_name %}Expenses{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Finance</span><h1>Expenses</h1><p>Every company expense and the account used to pay it.</p></div><div class="head-actions"><a class="btn btn-primary" href="{% url 'expense_create' %}">+ New Expense</a></div></div>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Account</th><th>Project</th><th>Amount</th>{% if request.user.is_company_admin %}<th class="actions-col">Actions</th>{% endif %}</tr></thead><tbody>
+{% for x in items %}<tr><td>{{ x.created_at|date:'d M Y H:i' }}</td><td>{{ x.category }}</td><td><strong>{{ x.description }}</strong><small>By {{ x.spent_by.display_name }}</small></td><td>{{ x.account }}</td><td>{{ x.project|default:'—' }}</td><td class="num debt">TZS {{ x.amount|money }}</td>{% if request.user.is_company_admin %}<td><div class="row-actions"><a href="{% url 'expense_edit' x.pk %}">Edit</a><a class="danger-link" href="{% url 'expense_delete' x.pk %}">Delete</a></div></td>{% endif %}</tr>
+{% empty %}<tr><td colspan="7" class="empty">No expenses yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

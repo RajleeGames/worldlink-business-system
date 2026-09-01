@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block page_name %}Admin Panel{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">System</span><h1>Admin panel</h1><p>Company branding, staff accounts and recent audit activity.</p></div><div class="head-actions"><a class="btn btn-secondary" href="{% url 'company_settings' %}">Company Settings</a><a class="btn btn-primary" href="{% url 'user_create' %}">+ New User</a></div></div>
+
+<section class="panel company-summary">
+    <div class="company-summary-logo">{% if company_obj.logo %}<img src="{{ company_obj.logo.url }}" alt="{{ company_obj.company_name }}">{% else %}<span>WL</span>{% endif %}</div>
+    <div class="company-summary-copy"><h2>{{ company_obj.company_name }}</h2><p>{{ company_obj.tagline }}</p><span>{{ company_obj.address }}{% if company_obj.phone %} · {{ company_obj.phone }}{% endif %}</span></div>
+    <a class="text-link" href="{% url 'company_settings' %}">Edit branding</a>
+</section>
+
+<section class="panel"><div class="panel-head"><div><h2>Users</h2><p>Admin and Cashier accounts. Add names and profile images for a cleaner top bar.</p></div></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th class="actions-col">Actions</th></tr></thead><tbody>
+{% for u in users %}<tr><td><div class="user-cell"><span class="avatar avatar-table">{% if u.avatar %}<img src="{{ u.avatar.url }}" alt="{{ u.display_name }}">{% else %}<span>{{ u.display_name|first|upper }}</span>{% endif %}</span><strong>{{ u.display_name }}</strong></div></td><td>@{{ u.username }}</td><td>{{ u.email|default:'—' }}</td><td>{{ u.get_role_display }}</td><td><span class="badge {% if u.is_active %}paid{% else %}void{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span></td><td><div class="row-actions"><a href="{% url 'user_edit' u.pk %}">Edit</a>{% if u.pk != request.user.pk %}<a class="danger-link" href="{% url 'user_delete' u.pk %}">Delete</a>{% endif %}</div></td></tr>
+{% endfor %}
+</tbody></table></div></section>
+
+<section class="panel"><div class="panel-head"><div><h2>Audit log</h2><p>Recent important actions remain traceable.</p></div></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>User</th><th>Action</th><th>Detail</th><th>IP</th></tr></thead><tbody>
+{% for x in logs %}<tr><td>{{ x.created_at|date:'d M Y H:i' }}</td><td>{{ x.user.display_name|default:'—' }}</td><td>{{ x.action }}</td><td>{{ x.detail|default:'—' }}</td><td>{{ x.ip_address|default:'—' }}</td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No audit activity yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

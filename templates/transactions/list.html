@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block page_name %}Sales & Services{% endblock %}
+
+{% block content %}
+<div class="page-head tx-list-head">
+  <div>
+    <span class="eyebrow">Sales &amp; services</span>
+    <h1>Transactions</h1>
+    <p>All sales, services, maintenance and project income.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'transaction_create' %}">
+    <span class="tx-filter-plus">+</span>
+    New Transaction
+  </a>
+</div>
+
+{# Search / type / status stay compact. The date range below uses the exact dashboard component. #}
+<section class="panel tx-list-filter-panel">
+  <form method="get" class="tx-list-filter-form">
+    <div class="tx-filter-main">
+      <div class="tx-filter-search">
+        <label for="tx-search">Search</label>
+        <div class="tx-search-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-3.8-3.8"></path>
+          </svg>
+          <input
+            id="tx-search"
+            class="form-control"
+            type="search"
+            name="q"
+            value="{{ request.GET.q }}"
+            placeholder="Number, customer or description"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <div class="tx-filter-control">
+        <label for="tx-kind">Type</label>
+        <select id="tx-kind" class="form-control" name="kind">
+          <option value="">All types</option>
+          {% for v,l in kind_choices %}
+            <option value="{{ v }}" {% if request.GET.kind == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="tx-filter-control">
+        <label for="tx-status">Status</label>
+        <select id="tx-status" class="form-control" name="status">
+          <option value="">All statuses</option>
+          {% for v,l in status_choices %}
+            <option value="{{ v }}" {% if request.GET.status == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Preserve the selected date period when Search / Type / Status changes. #}
+      <input type="hidden" name="range" value="{{ range_key }}">
+      {% if range_key == 'custom' %}
+        <input type="hidden" name="date_from" value="{% if filter_start %}{{ filter_start|date:'Y-m-d' }}{% endif %}">
+        <input type="hidden" name="date_to" value="{% if filter_end %}{{ filter_end|date:'Y-m-d' }}{% endif %}">
+      {% endif %}
+
+      <button class="btn btn-secondary tx-main-filter-btn" type="submit">Filter</button>
+    </div>
+  </form>
+</section>
+
+{# EXACT SAME VISUAL COMPONENT AS THE ADMIN DASHBOARD DATE FILTER. #}
+<section class="dashboard-date-filter" aria-label="Transaction date filter">
+  <div class="date-filter-summary">
+    <span>Viewing</span>
+    <strong>{{ range_label }}</strong>
+    <small>{{ filtered_count }} transaction{{ filtered_count|pluralize }} in selected period</small>
+  </div>
+
+  <nav class="date-filter-presets" aria-label="Quick date ranges">
+    <a
+      href="?range=all&amp;q={{ request.GET.q|urlencode }}&amp;kind={{ request.GET.kind|urlencode }}&amp;status={{ request.GET.status|urlencode }}"
+      class="date-preset{% if range_key == 'all' %} active{% endif %}"
+    >All time</a>
+    <a
+      href="?range=today&amp;q={{ request.GET.q|urlencode }}&amp;kind={{ request.GET.kind|urlencode }}&amp;status={{ request.GET.status|urlencode }}"
+      class="date-preset{% if range_key == 'today' %} active{% endif %}"
+    >Today</a>
+    <a
+      href="?range=7d&amp;q={{ request.GET.q|urlencode }}&amp;kind={{ request.GET.kind|urlencode }}&amp;status={{ request.GET.status|urlencode }}"
+      class="date-preset{% if range_key == '7d' %} active{% endif %}"
+    >Last 7 days</a>
+    <a
+      href="?range=month&amp;q={{ request.GET.q|urlencode }}&amp;kind={{ request.GET.kind|urlencode }}&amp;status={{ request.GET.status|urlencode }}"
+      class="date-preset{% if range_key == 'month' %} active{% endif %}"
+    >This month</a>
+    <a
+      href="?range=year&amp;q={{ request.GET.q|urlencode }}&amp;kind={{ request.GET.kind|urlencode }}&amp;status={{ request.GET.status|urlencode }}"
+      class="date-preset{% if range_key == 'year' %} active{% endif %}"
+    >This year</a>
+  </nav>
+
+  <form method="get" class="date-filter-form">
+    <input type="hidden" name="range" value="custom">
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+    <input type="hidden" name="kind" value="{{ request.GET.kind }}">
+    <input type="hidden" name="status" value="{{ request.GET.status }}">
+
+    <label class="date-filter-field">
+      <span>From</span>
+      <input
+        type="date"
+        name="date_from"
+        value="{% if filter_start %}{{ filter_start|date:'Y-m-d' }}{% endif %}"
+        max="{% now 'Y-m-d' %}"
+        required
+      >
+    </label>
+
+    <span class="date-filter-arrow" aria-hidden="true">→</span>
+
+    <label class="date-filter-field">
+      <span>To</span>
+      <input
+        type="date"
+        name="date_to"
+        value="{% if filter_end %}{{ filter_end|date:'Y-m-d' }}{% endif %}"
+        max="{% now 'Y-m-d' %}"
+        required
+      >
+    </label>
+
+    <button class="btn btn-primary date-filter-apply" type="submit">Apply</button>
+  </form>
+</section>
+
+<div class="tx-filter-summary">
+  <div>
+    <span>Showing</span>
+    <strong>{{ filtered_count }}</strong>
+    <small>transaction{{ filtered_count|pluralize }}</small>
+  </div>
+  <div>
+    <span>Valid value</span>
+    <strong>TZS {{ filtered_value|money }}</strong>
+    <small>Void transactions excluded</small>
+  </div>
+  {% if request.GET.q or request.GET.kind or request.GET.status or range_key != 'all' %}
+    <a class="tx-clear-filters" href="{% url 'transaction_list' %}">Clear filters</a>
+  {% endif %}
+</div>
+
+<section class="panel tx-list-table-panel">
+  <div class="table-wrap">
+    <table class="tx-list-table">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Description</th>
+          <th>Customer</th>
+          <th>Type</th>
+          <th class="num">Total</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in items %}
+          <tr>
+            <td><a class="cell-link" href="{% url 'transaction_detail' t.pk %}">{{ t.number }}</a></td>
+            <td><strong class="tx-list-description">{{ t.description|default:'Transaction' }}</strong></td>
+            <td>{{ t.customer|default:'Walk-in' }}</td>
+            <td>{{ t.get_kind_display }}</td>
+            <td class="num"><strong>TZS {{ t.total|money }}</strong></td>
+            <td><span class="badge {{ t.status }}">{{ t.get_status_display }}</span></td>
+            <td class="tx-list-date">
+              <strong>{{ t.created_at|date:'d M Y' }}</strong>
+              <small>{{ t.created_at|date:'H:i' }}</small>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">No transactions match these filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load business_tags %}
+{% block page_name %}Money Accounts{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Finance</span><h1>Money accounts</h1><p>Cash, mobile money and bank balances held by the company.</p></div><div class="head-actions"><a class="btn btn-secondary" href="{% url 'transfers' %}">Transfer Money</a><a class="btn btn-primary" href="{% url 'money_account_create' %}">+ New Account</a></div></div>
+<section class="account-card-grid">
+{% for x in items %}<article class="account-card"><div class="account-card-top"><span>{{ x.get_account_type_display }}</span><span class="badge {% if x.is_active %}paid{% else %}void{% endif %}">{% if x.is_active %}Active{% else %}Inactive{% endif %}</span></div><h2>{{ x.name }}</h2><strong>TZS {{ x.current_balance|money }}</strong><small>Opening: TZS {{ x.opening_balance|money }}</small><div class="account-card-actions"><a href="{% url 'money_account_edit' x.pk %}">Edit account</a></div></article>
+{% empty %}<div class="panel empty">No money accounts yet.</div>{% endfor %}
+</section>
+{% endblock %}

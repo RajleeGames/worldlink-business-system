@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block page_name %}Customers{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Operations</span><h1>Customers</h1><p>Customers, companies and organizations you work with.</p></div><div class="head-actions"><a class="btn btn-primary" href="{% url 'customer_create' %}">+ New Customer</a></div></div>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Status</th><th class="actions-col">Actions</th></tr></thead><tbody>
+{% for x in items %}<tr><td><strong>{{ x.name }}</strong><small>{{ x.address|default:'No address' }}</small></td><td>{{ x.phone|default:'—' }}</td><td>{{ x.email|default:'—' }}</td><td><span class="badge {% if x.is_active %}paid{% else %}void{% endif %}">{% if x.is_active %}Active{% else %}Inactive{% endif %}</span></td><td><div class="row-actions"><a href="{% url 'customer_edit' x.pk %}">Edit</a>{% if request.user.is_company_admin %}<a class="danger-link" href="{% url 'customer_delete' x.pk %}">Delete</a>{% endif %}</div></td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No customers yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

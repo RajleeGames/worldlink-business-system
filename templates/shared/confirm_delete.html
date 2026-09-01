@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block page_name %}Confirm Delete{% endblock %}
+{% block content %}
+<div class="confirm-wrap">
+    <section class="panel confirm-card">
+        <div class="confirm-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+        </div>
+        <h1>{{ delete_title }}</h1>
+        <p>{{ delete_subtitle }}</p>
+        <div class="confirm-object">{{ object }}</div>
+        <form method="post" class="confirm-actions">
+            {% csrf_token %}
+            <a class="btn btn-secondary" href="{{ cancel_url }}">Cancel</a>
+            <button class="btn btn-danger-solid" type="submit">Delete</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

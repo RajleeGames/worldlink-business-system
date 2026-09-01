@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+{% block title %}Dashboard | WorldLink{% endblock %}
+{% block page_name %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head dashboard-head">
+    <div>
+        <span class="eyebrow">Overview</span>
+        <h1>Business dashboard</h1>
+        <p>Revenue, spending, profit and activity for the period you are viewing.</p>
+    </div>
+    <div class="head-actions">
+        <a href="{% url 'expense_create' %}" class="btn btn-secondary">+ Expense</a>
+        <a href="{% url 'transaction_create' %}" class="btn btn-primary">+ New Transaction</a>
+    </div>
+</div>
+
+{% if dashboard_filter_enabled %}
+<section class="dashboard-date-filter" aria-label="Dashboard date filter">
+    <div class="date-filter-summary">
+        <span>Viewing</span>
+        <strong>{{ period_label }}</strong>
+        <small>{{ period_transaction_count }} transaction{{ period_transaction_count|pluralize }} in selected period</small>
+    </div>
+
+    <nav class="date-filter-presets" aria-label="Quick date ranges">
+        <a href="?range=today" class="date-preset{% if range_key == 'today' %} active{% endif %}">Today</a>
+        <a href="?range=7d" class="date-preset{% if range_key == '7d' %} active{% endif %}">Last 7 days</a>
+        <a href="?range=month" class="date-preset{% if range_key == 'month' %} active{% endif %}">This month</a>
+        <a href="?range=year" class="date-preset{% if range_key == 'year' %} active{% endif %}">This year</a>
+    </nav>
+
+    <form method="get" class="date-filter-form">
+        <input type="hidden" name="range" value="custom">
+        <label class="date-filter-field">
+            <span>From</span>
+            <input type="date" name="date_from" value="{{ filter_start|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" required>
+        </label>
+        <span class="date-filter-arrow" aria-hidden="true">→</span>
+        <label class="date-filter-field">
+            <span>To</span>
+            <input type="date" name="date_to" value="{{ filter_end|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" required>
+        </label>
+        <button class="btn btn-primary date-filter-apply" type="submit">Apply</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="kpi-grid dashboard-kpi-grid">
+    <article class="kpi">
+        <div class="kpi-top"><span>Revenue</span><span class="kpi-icon"><svg viewBox="0 0 20 20"><path d="M3 14.5 7.2 10l3 2.7L17 5.5"/><path d="M12.5 5.5H17V10"/></svg></span></div>
+        <strong>TZS {{ today_revenue|money }}</strong>
+        <small>{{ period_label }} · sales and service value</small>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span>Expenses</span><span class="kpi-icon"><svg viewBox="0 0 20 20"><path d="M3 5.5h14v10H3z"/><path d="M6 10h8"/></svg></span></div>
+        <strong>TZS {{ today_expenses|money }}</strong>
+        <small>{{ period_label }} · recorded company spending</small>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span>Net Profit</span><span class="kpi-icon"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M7 10.5 9.2 13 13.5 7.5"/></svg></span></div>
+        <strong>TZS {{ today_net|money }}</strong>
+        <small>Revenue less product cost and expenses</small>
+    </article>
+    <article class="kpi">
+        <div class="kpi-top"><span>Outstanding Debts</span><span class="kpi-icon"><svg viewBox="0 0 20 20"><path d="M10 3 17 16H3z"/><path d="M10 8v3.5M10 14h.01"/></svg></span></div>
+        <strong>TZS {{ debts|money }}</strong>
+        <small>Current customer balances still due</small>
+    </article>
+</section>
+
+<div class="dashboard-chart-grid">
+    <section class="panel chart-panel chart-panel-wide">
+        <div class="panel-head chart-panel-head">
+            <div>
+                <h2>Performance trend</h2>
+                <p>{{ trend_granularity }} revenue, gross profit and expenses · {{ period_label }}.</p>
+            </div>
+            <div class="chart-legend" aria-label="Chart legend">
+                <span><i class="legend-dot primary"></i>Revenue</span>
+                <span><i class="legend-dot gross"></i>Gross profit</span>
+                <span><i class="legend-dot expense"></i>Expenses</span>
+            </div>
+        </div>
+        <div class="chart-box chart-box-performance">
+            <canvas data-chart="trend" aria-label="Revenue, gross profit and expenses chart"></canvas>
+            <div class="chart-tooltip" data-chart-tooltip aria-hidden="true">
+                <div class="chart-tooltip-date" data-tip-date>—</div>
+                <div class="chart-tooltip-divider"></div>
+                <div class="chart-tooltip-row">
+                    <span><i class="legend-dot primary"></i>Revenue</span>
+                    <strong data-tip-revenue>TZS 0</strong>
+                </div>
+                <div class="chart-tooltip-row">
+                    <span><i class="legend-dot gross"></i>Gross profit</span>
+                    <strong data-tip-gross>TZS 0</strong>
+                </div>
+                <div class="chart-tooltip-row">
+                    <span><i class="legend-dot expense"></i>Expenses</span>
+                    <strong data-tip-expenses>TZS 0</strong>
+                </div>
+                <div class="chart-tooltip-divider"></div>
+                <div class="chart-tooltip-row chart-tooltip-net">
+                    <span>Net profit</span>
+                    <strong data-tip-net>TZS 0</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel chart-panel">
+        <div class="panel-head">
+            <div><h2>Income mix</h2><p>Which type of work generated revenue in this period.</p></div>
+        </div>
+        <div class="chart-box chart-box-small"><canvas data-chart="kind" aria-label="Income mix chart"></canvas></div>
+    </section>
+</div>
+
+<div class="grid-2 dashboard-lower-grid">
+    <section class="panel">
+        <div class="panel-head">
+            <div><h2>Money position</h2><p>Current company funds by account. This is not date-filtered.</p></div>
+            {% if request.user.is_company_admin %}<a href="{% url 'money_accounts' %}" class="text-link">Manage</a>{% endif %}
+        </div>
+        <div class="account-list">
+            {% for a in accounts %}
+            <div class="account-row">
+                <div><strong>{{ a.name }}</strong><span>{{ a.get_account_type_display }}</span></div>
+                <b>TZS {{ a.current_balance|money }}</b>
+            </div>
+            {% empty %}<div class="empty">No money accounts yet.</div>{% endfor %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head"><div><h2>Period snapshot</h2><p>{{ period_label }}</p></div></div>
+        <div class="snapshot snapshot-three">
+            <div><span>Revenue</span><strong>TZS {{ month_revenue|money }}</strong></div>
+            <div><span>Expenses</span><strong>TZS {{ month_expenses|money }}</strong></div>
+            <div><span>Net profit</span><strong>TZS {{ month_net|money }}</strong></div>
+        </div>
+        <div class="month-project-row"><span>Active projects now</span><strong>{{ active_projects }}</strong></div>
+        <div class="quick-links">
+            <a href="{% url 'projects' %}">View projects →</a>
+            <a href="{% url 'debts' %}">Review debts →</a>
+            <a href="{% url 'day_close' %}">Close the day →</a>
+        </div>
+    </section>
+</div>
+
+<section class="panel">
+    <div class="panel-head">
+        <div><h2>Recent transactions</h2><p>Latest transactions inside {{ period_label }}.</p></div>
+        <a href="{% url 'transaction_list' %}" class="text-link">View all</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Transaction</th><th>Customer</th><th>Type</th><th>Amount</th><th>Status</th><th>By</th></tr></thead>
+            <tbody>
+            {% for t in recent %}
+            <tr>
+                <td><a class="cell-link" href="{% url 'transaction_detail' t.pk %}">{{ t.number }}</a><small>{{ t.created_at|date:'d M, H:i' }}</small></td>
+                <td>{{ t.customer|default:'Walk-in' }}</td>
+                <td>{{ t.get_kind_display }}</td>
+                <td class="num">TZS {{ t.total|money }}</td>
+                <td><span class="badge {{ t.status }}">{{ t.get_status_display }}</span></td>
+                <td>{{ t.created_by.display_name }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="6" class="empty">No transactions in this period.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{{ trend_chart|json_script:"dashboard-trend-data" }}
+{{ kind_chart|json_script:"dashboard-kind-data" }}
+{% endblock %}

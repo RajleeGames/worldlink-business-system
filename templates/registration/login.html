@@ -1,0 +1,93 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d4866">
+    <meta name="color-scheme" content="light">
+    <title>Sign in | {{ company.company_name|default:'WorldLink Business' }}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="login-body">
+
+<div class="wl-preloader" data-preloader aria-live="polite" aria-label="Loading WorldLink Business Manager">
+    <div class="wl-preloader-inner">
+        <div class="wl-preloader-brand">
+            <div class="wl-preloader-logo">
+                {% if company.logo %}
+                    <img src="{{ company.logo.url }}" alt="">
+                {% else %}
+                    <span>WL</span>
+                {% endif %}
+            </div>
+            <div class="wl-preloader-network" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+        <strong>{{ company.company_name|default:'WorldLink Business' }}</strong>
+        <span class="wl-preloader-status">Opening secure workspace</span>
+        <div class="wl-preloader-track" aria-hidden="true"><span></span></div>
+    </div>
+</div>
+<canvas class="login-network-canvas" data-network-canvas aria-hidden="true"></canvas>
+<main class="login-shell">
+    <section class="login-card" aria-labelledby="login-title">
+        <div class="login-brand">
+            <div class="login-logo">
+                {% if company.logo %}
+                    <img src="{{ company.logo.url }}" alt="{{ company.company_name }}">
+                {% else %}
+                    <span>WL</span>
+                {% endif %}
+            </div>
+            <strong>{{ company.company_name|default:'WORLDLINK SECURITY SYSTEMS' }}</strong>
+            <span>{{ company.tagline|default:'Business Manager' }}</span>
+        </div>
+
+        <div class="login-heading">
+            <span class="login-eyebrow">STAFF ACCESS</span>
+            <h1 id="login-title">Welcome back</h1>
+            <p>Sign in to continue to the company business workspace.</p>
+        </div>
+
+        {% if form.errors %}
+            <div class="form-error-box" role="alert">The username or password is incorrect.</div>
+        {% endif %}
+
+        <form method="post" class="stack-form" novalidate>
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="{{ form.username.id_for_label }}">Username</label>
+                {{ form.username }}
+            </div>
+
+            <div class="field">
+                <label for="{{ form.password.id_for_label }}">Password</label>
+                <div class="password-wrap">
+                    {{ form.password }}
+                    <button class="password-toggle" type="button" data-password-toggle aria-label="Show password">
+                        <svg class="eye-open" viewBox="0 0 20 20" aria-hidden="true">
+                            <path d="M2.5 10s2.7-5 7.5-5 7.5 5 7.5 5-2.7 5-7.5 5-7.5-5-7.5-5z"/>
+                            <circle cx="10" cy="10" r="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-block login-button" type="submit" data-loading-button>
+                <span>Sign in</span>
+                <svg class="btn-ico login-arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M12 6l4 4-4 4"/></svg>
+            </button>
+        </form>
+
+        <div class="login-foot">
+            <span class="login-foot-dot"></span>
+            <span>Admin & cashier workspace</span>
+        </div>
+    </section>
+</main>
+<script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>

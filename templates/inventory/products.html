@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load business_tags %}
+{% block page_name %}Products & Stock{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Inventory</span><h1>Products & stock</h1><p>Track equipment, current quantity, costs and selling prices.</p></div>{% if request.user.is_company_admin %}<div class="head-actions"><a class="btn btn-secondary" href="{% url 'purchase_create' %}">+ Stock Purchase</a><a class="btn btn-primary" href="{% url 'product_create' %}">+ New Product</a></div>{% endif %}</div>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Product</th><th>Stock</th><th>Cost</th><th>Selling</th><th>Stock value</th>{% if request.user.is_company_admin %}<th class="actions-col">Actions</th>{% endif %}</tr></thead><tbody>
+{% for x in items %}<tr><td>{{ x.sku }}</td><td><strong>{{ x.name }}</strong><small>{{ x.category|default:'Uncategorized' }}</small></td><td><span class="stock-pill {% if x.quantity <= x.reorder_level %}low{% endif %}">{{ x.quantity }}</span></td><td>TZS {{ x.cost_price|money }}</td><td>TZS {{ x.selling_price|money }}</td><td class="num">TZS {{ x.stock_value|money }}</td>{% if request.user.is_company_admin %}<td><div class="row-actions"><a href="{% url 'product_edit' x.pk %}">Edit</a><a class="danger-link" href="{% url 'product_delete' x.pk %}">Delete</a></div></td>{% endif %}</tr>
+{% empty %}<tr><td colspan="7" class="empty">No products yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

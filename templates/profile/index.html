@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block page_name %}My Profile{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div><h1>My profile</h1><p>Update your name, email and profile image.</p></div>
+</div>
+<div class="profile-layout">
+    <section class="panel profile-preview">
+        <span class="avatar avatar-xl">
+            {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="{{ request.user.display_name }}">{% else %}<span>{{ request.user.display_name|first|upper }}</span>{% endif %}
+        </span>
+        <h2>{{ request.user.display_name }}</h2>
+        <p>@{{ request.user.username }}</p>
+        <span class="badge paid">{{ request.user.get_role_display }}</span>
+    </section>
+    <section class="panel form-page-card profile-form-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="field"><label>{{ field.label }}</label>{{ field }}{{ field.errors }}</div>
+            {% endfor %}
+            <div class="form-actions"><button class="btn btn-primary" type="submit">Save Profile</button></div>
+        </form>
+    </section>
+</div>
+{% endblock %}

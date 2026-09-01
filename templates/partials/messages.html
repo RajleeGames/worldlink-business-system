@@ -1,0 +1,1 @@
+{% if messages %}<div class="toast-stack">{% for message in messages %}<div class="toast {{ message.tags }}" data-toast>{{ message }}<button type="button" data-toast-close>×</button></div>{% endfor %}</div>{% endif %}

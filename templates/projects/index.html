@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load business_tags %}
+{% block page_name %}Projects{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Operations</span><h1>Projects</h1><p>Installations, quotations and customer jobs with project costing.</p></div><div class="head-actions"><a class="btn btn-primary" href="{% url 'project_create' %}">+ New Project</a></div></div>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Code</th><th>Project</th><th>Customer</th><th>Quoted</th><th>Revenue</th><th>Direct cost</th><th>Profit</th><th>Status</th><th class="actions-col">Actions</th></tr></thead><tbody>
+{% for x in items %}<tr><td>{{ x.code }}</td><td><strong>{{ x.title }}</strong><small>{% if x.start_date %}{{ x.start_date|date:'d M Y' }}{% else %}No start date{% endif %}</small></td><td>{{ x.customer }}</td><td>TZS {{ x.quoted_amount|money }}</td><td>TZS {{ x.revenue|money }}</td><td>TZS {{ x.direct_costs|money }}</td><td class="num">TZS {{ x.profit|money }}</td><td><span class="badge {{ x.status }}">{{ x.get_status_display }}</span></td><td><div class="row-actions"><a href="{% url 'project_edit' x.pk %}">Edit</a>{% if request.user.is_company_admin %}<a class="danger-link" href="{% url 'project_delete' x.pk %}">Delete</a>{% endif %}</div></td></tr>
+{% empty %}<tr><td colspan="9" class="empty">No projects yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

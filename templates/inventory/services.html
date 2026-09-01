@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% load business_tags %}
+{% block page_name %}Saved Services{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Inventory</span><h1>Saved services</h1><p>Reusable service types for faster daily transaction entry.</p></div>{% if request.user.is_company_admin %}<div class="head-actions"><a class="btn btn-primary" href="{% url 'service_create' %}">+ New Service</a></div>{% endif %}</div>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Service</th><th>Category</th><th>Default price</th><th>Status</th>{% if request.user.is_company_admin %}<th class="actions-col">Actions</th>{% endif %}</tr></thead><tbody>
+{% for x in items %}<tr><td><strong>{{ x.name }}</strong></td><td>{{ x.category|default:'—' }}</td><td class="num">TZS {{ x.default_price|money }}</td><td><span class="badge {% if x.is_active %}paid{% else %}void{% endif %}">{% if x.is_active %}Active{% else %}Inactive{% endif %}</span></td>{% if request.user.is_company_admin %}<td><div class="row-actions"><a href="{% url 'service_edit' x.pk %}">Edit</a><a class="danger-link" href="{% url 'service_delete' x.pk %}">Delete</a></div></td>{% endif %}</tr>
+{% empty %}<tr><td colspan="5" class="empty">No saved services yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}
