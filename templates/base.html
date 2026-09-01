@@ -3,19 +3,40 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0d4866">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
+
+    <meta name="theme-color" content="#071b2a">
     <meta name="color-scheme" content="light">
-    <title>{% block title %}WorldLink Business{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+    <title>
+        {% block title %}
+            WorldLink Business
+        {% endblock %}
+    </title>
+
+    {# Cache-busted global CSS #}
+    <link
+        rel="stylesheet"
+        href="{% static 'css/app.css' %}?v=1.6.2"
+    >
 </head>
+
 <body>
+
 <div class="app-shell">
+
     {% include 'partials/sidebar.html' %}
 
     <div class="app-main">
+
         <header class="topbar">
+
             <div class="topbar-left">
+
                 <button
                     class="icon-btn sidebar-toggle"
                     type="button"
@@ -24,44 +45,112 @@
                     aria-expanded="true"
                     title="Toggle sidebar"
                 >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 6.5h16M4 12h16M4 17.5h16"/>
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="
+                                M4 6.5h16
+                                M4 12h16
+                                M4 17.5h16
+                            "
+                        />
                     </svg>
                 </button>
 
-                <a class="mobile-brand" href="{% url 'dashboard' %}" aria-label="Dashboard">
+
+                <a
+                    class="mobile-brand"
+                    href="{% url 'dashboard' %}"
+                    aria-label="Dashboard"
+                >
                     {% if company.logo %}
-                        <img src="{{ company.logo.url }}" alt="{{ company.company_name }}">
+                        <img
+                            src="{{ company.logo.url }}"
+                            alt="{{ company.company_name }}"
+                        >
                     {% else %}
                         <span>WL</span>
                     {% endif %}
                 </a>
 
+
                 <div class="topbar-title">
-                    <span>{% block page_name %}{% endblock %}</span>
+                    <span>
+                        {% block page_name %}
+                        {% endblock %}
+                    </span>
                 </div>
+
             </div>
 
+
             <div class="topbar-actions">
-                <div class="desktop-clock" data-live-clock aria-label="Current date and time">
-                    <svg viewBox="0 0 20 20" aria-hidden="true">
-                        <circle cx="10" cy="10" r="7.25"/>
-                        <path d="M10 6v4.2l2.8 1.7"/>
+
+                {# Live date and time — desktop only via CSS #}
+                <div
+                    class="desktop-clock"
+                    data-live-clock
+                    aria-label="Current date and time"
+                >
+                    <svg
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            cx="10"
+                            cy="10"
+                            r="7.25"
+                        />
+
+                        <path
+                            d="M10 6v4.2l2.8 1.7"
+                        />
                     </svg>
+
                     <div>
-                        <span data-clock-date>31 Aug 2026</span>
-                        <strong data-clock-time>17:32</strong>
+                        <span data-clock-date>
+                            --
+                        </span>
+
+                        <strong data-clock-time>
+                            --:--:--
+                        </strong>
                     </div>
                 </div>
 
-                <a class="btn btn-primary topbar-new" href="{% url 'transaction_create' %}">
-                    <svg class="btn-ico" viewBox="0 0 20 20" aria-hidden="true">
-                        <path d="M10 4v12M4 10h12"/>
+
+                {# Fast transaction shortcut #}
+                <a
+                    class="btn btn-primary topbar-new"
+                    href="{% url 'transaction_create' %}"
+                >
+                    <svg
+                        class="btn-ico"
+                        viewBox="0 0 20 20"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="
+                                M10 4v12
+                                M4 10h12
+                            "
+                        />
                     </svg>
-                    <span>New Transaction</span>
+
+                    <span>
+                        New Transaction
+                    </span>
                 </a>
 
-                <div class="user-menu" data-user-menu>
+
+                {# User menu #}
+                <div
+                    class="user-menu"
+                    data-user-menu
+                >
+
                     <button
                         class="user-trigger"
                         type="button"
@@ -69,88 +158,244 @@
                         aria-expanded="false"
                         aria-haspopup="true"
                     >
+
                         <span class="avatar avatar-sm">
+
                             {% if request.user.avatar %}
-                                <img src="{{ request.user.avatar.url }}" alt="{{ request.user.display_name }}">
+
+                                <img
+                                    src="{{ request.user.avatar.url }}"
+                                    alt="{{ request.user.display_name }}"
+                                >
+
                             {% else %}
-                                <span>{{ request.user.display_name|first|upper }}</span>
+
+                                <span>
+                                    {{ request.user.display_name|first|upper }}
+                                </span>
+
                             {% endif %}
+
                         </span>
+
 
                         <span class="user-trigger-copy">
-                            <small>{{ greeting }}</small>
-                            <strong>{{ request.user.display_name }}</strong>
+
+                            <small>
+                                {{ greeting }}
+                            </small>
+
+                            <strong>
+                                {{ request.user.display_name }}
+                            </strong>
+
                         </span>
 
-                        <span class="chevron-wrap" aria-hidden="true">
-                            <svg class="chevron" viewBox="0 0 20 20">
-                                <path d="m6 8 4 4 4-4"/>
+
+                        <span
+                            class="chevron-wrap"
+                            aria-hidden="true"
+                        >
+                            <svg
+                                class="chevron"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="m6 8 4 4 4-4"
+                                />
                             </svg>
                         </span>
+
                     </button>
 
-                    <div class="dropdown user-dropdown" data-dropdown>
+
+                    <div
+                        class="dropdown user-dropdown"
+                        data-dropdown
+                    >
+
                         <div class="dropdown-profile">
+
                             <span class="avatar avatar-lg">
+
                                 {% if request.user.avatar %}
-                                    <img src="{{ request.user.avatar.url }}" alt="{{ request.user.display_name }}">
+
+                                    <img
+                                        src="{{ request.user.avatar.url }}"
+                                        alt="{{ request.user.display_name }}"
+                                    >
+
                                 {% else %}
-                                    <span>{{ request.user.display_name|first|upper }}</span>
+
+                                    <span>
+                                        {{ request.user.display_name|first|upper }}
+                                    </span>
+
                                 {% endif %}
+
                             </span>
+
+
                             <div class="dropdown-profile-copy">
-                                <strong>{{ request.user.display_name }}</strong>
-                                <span>@{{ request.user.username }}</span>
-                                <small>{{ request.user.get_role_display }}</small>
+
+                                <strong>
+                                    {{ request.user.display_name }}
+                                </strong>
+
+                                <span>
+                                    @{{ request.user.username }}
+                                </span>
+
+                                <small>
+                                    {{ request.user.get_role_display }}
+                                </small>
+
                             </div>
+
                         </div>
 
+
                         <div class="dropdown-separator"></div>
 
-                        <a class="dropdown-item" href="{% url 'profile' %}">
-                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                <circle cx="10" cy="6.5" r="3"/>
-                                <path d="M4 17c.5-3.5 2.5-5.5 6-5.5s5.5 2 6 5.5"/>
+
+                        <a
+                            class="dropdown-item"
+                            href="{% url 'profile' %}"
+                        >
+                            <svg
+                                viewBox="0 0 20 20"
+                                aria-hidden="true"
+                            >
+                                <circle
+                                    cx="10"
+                                    cy="6.5"
+                                    r="3"
+                                />
+
+                                <path
+                                    d="
+                                        M4 17
+                                        c.5-3.5 2.5-5.5 6-5.5
+                                        s5.5 2 6 5.5
+                                    "
+                                />
                             </svg>
-                            <span>My Profile</span>
+
+                            <span>
+                                My Profile
+                            </span>
                         </a>
 
+
                         {% if request.user.is_company_admin %}
-                            <a class="dropdown-item" href="{% url 'admin_panel' %}">
-                                <svg viewBox="0 0 20 20" aria-hidden="true">
-                                    <circle cx="10" cy="10" r="2.5"/>
-                                    <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4"/>
+
+                            <a
+                                class="dropdown-item"
+                                href="{% url 'admin_panel' %}"
+                            >
+                                <svg
+                                    viewBox="0 0 20 20"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="10"
+                                        cy="10"
+                                        r="2.5"
+                                    />
+
+                                    <path
+                                        d="
+                                            M10 2.5v2
+                                            M10 15.5v2
+                                            M2.5 10h2
+                                            M15.5 10h2
+
+                                            M4.7 4.7l1.4 1.4
+                                            M13.9 13.9l1.4 1.4
+
+                                            M15.3 4.7l-1.4 1.4
+                                            M6.1 13.9l-1.4 1.4
+                                        "
+                                    />
                                 </svg>
-                                <span>System Settings</span>
+
+                                <span>
+                                    System Settings
+                                </span>
                             </a>
+
                         {% endif %}
+
 
                         <div class="dropdown-separator"></div>
 
-                        <form method="post" action="{% url 'logout' %}">
+
+                        <form
+                            method="post"
+                            action="{% url 'logout' %}"
+                        >
                             {% csrf_token %}
-                            <button class="dropdown-item danger-item" type="submit">
-                                <svg viewBox="0 0 20 20" aria-hidden="true">
-                                    <path d="M8 3H4v14h4M12 6l4 4-4 4M7 10h9"/>
+
+                            <button
+                                class="dropdown-item danger-item"
+                                type="submit"
+                            >
+                                <svg
+                                    viewBox="0 0 20 20"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="
+                                            M8 3H4v14h4
+                                            M12 6l4 4-4 4
+                                            M7 10h9
+                                        "
+                                    />
                                 </svg>
-                                <span>Sign out</span>
+
+                                <span>
+                                    Sign out
+                                </span>
                             </button>
                         </form>
+
                     </div>
+
                 </div>
+
             </div>
+
         </header>
 
+
         <main class="page-wrap">
+
             {% include 'partials/messages.html' %}
-            {% block content %}{% endblock %}
+
+            {% block content %}
+            {% endblock %}
+
         </main>
+
     </div>
+
 </div>
 
-<div class="mobile-overlay" data-sidebar-overlay></div>
 
-<script src="{% static 'js/app.js' %}"></script>
-{% block scripts %}{% endblock %}
+{# Mobile sidebar backdrop #}
+<div
+    class="mobile-overlay"
+    data-sidebar-overlay
+></div>
+
+
+{# Cache-busted global JavaScript #}
+<script
+    src="{% static 'js/app.js' %}?v=1.6.2"
+></script>
+
+{% block scripts %}
+{% endblock %}
+
 </body>
 </html>
