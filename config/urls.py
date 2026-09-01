@@ -3,7 +3,9 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+
 from accounts.forms import LoginForm
+
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -16,6 +18,7 @@ urlpatterns = [
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("sms/", include(("sms_center.urls", "sms_center"), namespace="sms_center")),
     path("", include("business.urls")),
 ]
 

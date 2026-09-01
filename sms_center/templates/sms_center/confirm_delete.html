@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · WorldLink{% endblock %}
+{% block page_name %}SMS Center{% endblock %}
+
+{% block content %}
+<section class="sms-delete-shell">
+    <div class="panel sms-delete-card">
+        <span class="sms-delete-icon"><svg viewBox="0 0 20 20"><path d="M4 5h12M8 5V3h4v2M6 5l.7 12h6.6L14 5M8.5 8.5v5M11.5 8.5v5"/></svg></span>
+        <span class="eyebrow">Confirm action</span>
+        <h1>{{ title }}</h1>
+        <p>You are about to remove <strong>{{ object_name }}</strong>. This action cannot be undone.</p>
+        <form method="post" class="sms-delete-actions">{% csrf_token %}<a class="btn btn-secondary" href="{% url cancel_url %}">Cancel</a><button class="btn btn-danger-solid" type="submit">Delete</button></form>
+    </div>
+</section>
+{% endblock %}

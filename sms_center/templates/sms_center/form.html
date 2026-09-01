@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} · WorldLink{% endblock %}
+{% block page_name %}SMS Center{% endblock %}
+
+{% block content %}
+<section class="page-head compact-head sms-page-head">
+    <div><span class="eyebrow">SMS Center</span><h1>{{ form_title }}</h1><p>{{ form_subtitle }}</p></div>
+    <div class="head-actions"><a class="btn btn-secondary" href="javascript:history.back()" data-no-preloader>Cancel</a></div>
+</section>
+
+<section class="panel sms-form-card">
+    <form method="post" class="sms-model-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="sms-form-grid">
+            {% for field in form %}
+                {% if field.field.widget.input_type == 'checkbox' %}
+                    <label class="sms-switch-card sms-form-toggle">
+                        {{ field }}
+                        <span><b>{{ field.label }}</b>{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</span>
+                    </label>
+                {% else %}
+                    <label class="field {% if field.name == 'body' or field.name == 'notes' %}sms-form-full{% endif %}">
+                        <span>{{ field.label }}</span>
+                        {{ field }}
+                        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+                        {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+                    </label>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div class="sms-form-footer"><a class="btn btn-secondary" href="javascript:history.back()" data-no-preloader>Cancel</a><button class="btn btn-primary" type="submit">{{ submit_label }}</button></div>
+    </form>
+</section>
+{% endblock %}

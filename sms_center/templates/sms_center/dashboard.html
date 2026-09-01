@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Center · WorldLink{% endblock %}
+{% block page_name %}SMS Center{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">Customer communication</span>
+        <h1>SMS Center</h1>
+        <p>Send customer messages, manage reusable contacts and track every campaign from one workspace.</p>
+    </div>
+    <div class="head-actions">
+        <a class="btn btn-secondary" href="{% url 'sms_center:contacts' %}">Contacts</a>
+        <a class="btn btn-primary" href="{% url 'sms_center:send' %}">
+            <svg class="btn-ico" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10 17 3l-4 14-3-5z"/><path d="m10 12 7-9"/></svg>
+            Send SMS
+        </a>
+    </div>
+</section>
+
+<div class="sms-kpi-grid">
+    <article class="sms-kpi sms-balance-card">
+        <div class="sms-kpi-head">
+            <span>Beem balance</span>
+            <span class="sms-provider-dot {% if sms_balance.ok %}is-online{% endif %}"></span>
+        </div>
+        <strong data-sms-balance-value>{{ sms_balance.display }}</strong>
+        <small data-sms-balance-message>{{ sms_balance.message }}</small>
+        <button class="sms-inline-action" type="button" data-sms-refresh-balance data-url="{% url 'sms_center:balance' %}">Refresh balance</button>
+    </article>
+
+    <article class="sms-kpi">
+        <div class="sms-kpi-head"><span>SMS contacts</span><span>Active</span></div>
+        <strong>{{ contact_count|default:0 }}</strong>
+        <small>Saved contacts allowed to receive SMS.</small>
+        <a class="sms-inline-action" href="{% url 'sms_center:contacts' %}">Manage contacts</a>
+    </article>
+
+    <article class="sms-kpi">
+        <div class="sms-kpi-head"><span>System customers</span><span>With phone</span></div>
+        <strong>{{ customer_count|default:0 }}</strong>
+        <small>Customers already saved in WorldLink.</small>
+        <a class="sms-inline-action" href="{% url 'sms_center:send' %}">Choose customers</a>
+    </article>
+
+    <article class="sms-kpi">
+        <div class="sms-kpi-head"><span>Sent today</span><span>Recipients</span></div>
+        <strong>{{ sent_today|default:0 }}</strong>
+        <small>{{ delivered_today|default:0 }} delivered · {{ failed_today|default:0 }} failed</small>
+        <a class="sms-inline-action" href="{% url 'sms_center:history' %}">Open history</a>
+    </article>
+</div>
+
+<div class="sms-dashboard-grid">
+    <section class="panel sms-quick-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Quick actions</h2>
+                <p>Everything needed for daily customer communication.</p>
+            </div>
+        </div>
+
+        <div class="sms-action-grid">
+            <a class="sms-action-card" href="{% url 'sms_center:send' %}">
+                <span class="sms-action-icon"><svg viewBox="0 0 20 20"><path d="M3 10 17 3l-4 14-3-5z"/><path d="m10 12 7-9"/></svg></span>
+                <span><strong>Send message</strong><small>Customers, saved contacts or manual numbers.</small></span>
+            </a>
+            <a class="sms-action-card" href="{% url 'sms_center:import_contacts' %}">
+                <span class="sms-action-icon"><svg viewBox="0 0 20 20"><path d="M10 3v9M6.5 8.5 10 12l3.5-3.5"/><path d="M3 14v3h14v-3"/></svg></span>
+                <span><strong>Import CSV</strong><small>Bring phone numbers from an external list.</small></span>
+            </a>
+            <a class="sms-action-card" href="{% url 'sms_center:templates' %}">
+                <span class="sms-action-icon"><svg viewBox="0 0 20 20"><path d="M4 3h12v14H4z"/><path d="M7 7h6M7 10h6M7 13h4"/></svg></span>
+                <span><strong>Templates</strong><small>Reuse reminders, service updates and promotions.</small></span>
+            </a>
+            {% if request.user.is_company_admin %}
+            <a class="sms-action-card" href="{% url 'sms_center:senders' %}">
+                <span class="sms-action-icon"><svg viewBox="0 0 20 20"><path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5z"/><path d="M6 9.5h8"/></svg></span>
+                <span><strong>Sender IDs</strong><small>Choose approved Beem sender names.</small></span>
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="sms-provider-strip">
+            <div>
+                <span>Provider</span>
+                <strong>Beem Africa</strong>
+            </div>
+            <div>
+                <span>Default Sender</span>
+                <strong>{{ default_sender|default:"WORLDLINK" }}</strong>
+            </div>
+            <div>
+                <span>Connection</span>
+                <strong class="{% if provider_configured %}sms-good{% else %}sms-warn{% endif %}">
+                    {% if provider_configured %}Configured{% else %}Needs API keys{% endif %}
+                </strong>
+            </div>
+            <div>
+                <span>This month</span>
+                <strong>{{ campaigns_month|default:0 }} campaigns</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel sms-recent-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Recent campaigns</h2>
+                <p>Latest SMS activity from WorldLink.</p>
+            </div>
+            <a class="text-link" href="{% url 'sms_center:history' %}">View all</a>
+        </div>
+
+        <div class="sms-recent-list">
+            {% for campaign in recent_campaigns %}
+                <a class="sms-recent-row" href="{% url 'sms_center:campaign_detail' campaign.pk %}">
+                    <span class="sms-recent-main">
+                        <strong>{{ campaign.title|default:"SMS Campaign"|truncatechars:34 }}</strong>
+                        <small>{{ campaign.created_at|date:"d M Y · H:i" }} · {{ campaign.sender_id }}</small>
+                    </span>
+                    <span class="sms-recent-right">
+                        <b>{{ campaign.recipient_count }}</b>
+                        <small>recipients</small>
+                        <span class="sms-status {{ campaign.status }}">{{ campaign.get_status_display }}</span>
+                    </span>
+                </a>
+            {% empty %}
+                <div class="sms-empty-state compact">
+                    <span class="sms-empty-icon">SMS</span>
+                    <strong>No campaigns yet</strong>
+                    <small>Your first sent message will appear here.</small>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

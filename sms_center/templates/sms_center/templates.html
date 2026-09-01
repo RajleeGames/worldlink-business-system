@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Templates · WorldLink{% endblock %}
+{% block page_name %}SMS Templates{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Center</span>
+        <h1>Templates</h1>
+        <p>Reusable messages for reminders, service updates, promotions and customer follow-ups.</p>
+    </div>
+    <div class="head-actions">
+        <a class="btn btn-secondary" href="{% url 'sms_center:send' %}">Send SMS</a>
+        <a class="btn btn-primary" href="{% url 'sms_center:template_create' %}">+ New Template</a>
+    </div>
+</section>
+
+<div class="sms-template-grid">
+    {% for template in templates %}
+        <article class="panel sms-template-card">
+            <div class="sms-template-top">
+                <div>
+                    <strong>{{ template.name }}</strong>
+                    <span>{{ template.category|default:"General" }}</span>
+                </div>
+                {% if template.is_active %}<span class="sms-status delivered">Active</span>{% else %}<span class="sms-status draft">Inactive</span>{% endif %}
+            </div>
+            <p>{{ template.body|linebreaksbr }}</p>
+            <div class="sms-template-meta">
+                <span>{{ template.body|length }} characters</span>
+                <span>Updated {{ template.updated_at|date:"d M Y" }}</span>
+            </div>
+            <div class="sms-template-actions">
+                <a href="{% url 'sms_center:template_edit' template.pk %}">Edit</a>
+                <a href="{% url 'sms_center:send' %}?template={{ template.pk }}">Use</a>
+                {% if request.user.is_company_admin %}<a class="danger" href="{% url 'sms_center:template_delete' template.pk %}">Delete</a>{% endif %}
+            </div>
+        </article>
+    {% empty %}
+        <section class="panel sms-empty-state sms-template-empty">
+            <span class="sms-empty-icon">T</span>
+            <strong>No SMS templates yet</strong>
+            <small>Create your first reusable message.</small>
+            <a class="btn btn-primary" href="{% url 'sms_center:template_create' %}">Create template</a>
+        </section>
+    {% endfor %}
+</div>
+{% endblock %}

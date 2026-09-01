@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Sender IDs · WorldLink{% endblock %}
+{% block page_name %}SMS Sender IDs{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Center · Admin</span>
+        <h1>Sender IDs</h1>
+        <p>Manage sender names that have already been approved by Beem. API credentials remain protected in the server environment.</p>
+    </div>
+    <div class="head-actions"><a class="btn btn-primary" href="{% url 'sms_center:sender_create' %}">+ Add Sender ID</a></div>
+</section>
+
+<div class="sms-sender-grid">
+    <article class="panel sms-sender-card is-environment">
+        <span class="sms-sender-origin">Environment default</span>
+        <strong>{{ environment_sender|default:"WORLDLINK" }}</strong>
+        <small>Configured by <code>BEEM_SENDER_ID</code> on the server.</small>
+        <span class="sms-status delivered">Available</span>
+    </article>
+
+    {% for sender in senders %}
+        <article class="panel sms-sender-card">
+            <span class="sms-sender-origin">{{ sender.label|default:"Approved Sender ID" }}</span>
+            <strong>{{ sender.sender_id }}</strong>
+            <small>{% if sender.is_default %}Preferred sender for new campaigns.{% else %}Additional sender profile.{% endif %}</small>
+            <div class="sms-sender-footer">
+                {% if sender.is_active %}<span class="sms-status delivered">Active</span>{% else %}<span class="sms-status draft">Inactive</span>{% endif %}
+                <div class="sms-row-actions"><a href="{% url 'sms_center:sender_edit' sender.pk %}">Edit</a><a class="danger" href="{% url 'sms_center:sender_delete' sender.pk %}">Delete</a></div>
+            </div>
+        </article>
+    {% endfor %}
+</div>
+
+<div class="panel sms-info-panel">
+    <strong>Important</strong>
+    <p>Adding a name here does not register it with the mobile networks. Only add Sender IDs already approved in your Beem account.</p>
+</div>
+{% endblock %}

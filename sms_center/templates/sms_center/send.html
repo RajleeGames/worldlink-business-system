@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Send SMS · WorldLink{% endblock %}
+{% block page_name %}Send SMS{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Center</span>
+        <h1>Send customer message</h1>
+        <p>Select exactly who should receive the message, preview the cost estimate and send using your approved WorldLink Sender ID.</p>
+    </div>
+    <div class="head-actions">
+        <a class="btn btn-secondary" href="{% url 'sms_center:import_contacts' %}">Import CSV</a>
+        <a class="btn btn-secondary" href="{% url 'sms_center:history' %}">History</a>
+    </div>
+</section>
+
+<form method="post" class="sms-compose" data-sms-compose>
+    {% csrf_token %}
+
+    <div class="sms-compose-main">
+        <section class="panel sms-compose-panel">
+            <div class="sms-step-head">
+                <span class="sms-step-number">01</span>
+                <div>
+                    <h2>Choose recipients</h2>
+                    <p>Use saved WorldLink customers, SMS contacts, manual numbers, or any combination.</p>
+                </div>
+                <span class="sms-count-pill"><b data-sms-selected-count>0</b> selected</span>
+            </div>
+
+            <div class="sms-audience-toolbar">
+                <div class="sms-source-tabs" role="tablist">
+                    <button type="button" class="sms-source-tab active" data-sms-source="customer">System customers</button>
+                    <button type="button" class="sms-source-tab" data-sms-source="contact">SMS contacts</button>
+                </div>
+                <div class="sms-audience-actions">
+                    <button type="button" class="sms-mini-btn" data-sms-select-visible>Select visible</button>
+                    <button type="button" class="sms-mini-btn" data-sms-clear-selection>Clear</button>
+                </div>
+            </div>
+
+            <div class="sms-search-row">
+                <label class="sms-search-box">
+                    <svg viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="m12.3 12.3 4.2 4.2"/></svg>
+                    <input type="search" placeholder="Search name, phone or group..." data-sms-recipient-search>
+                </label>
+            </div>
+
+            <div class="sms-recipient-list" data-sms-recipient-list>
+                {% for customer in customers %}
+                    <label
+                        class="sms-recipient-row {% if customer.blocked %}is-disabled{% endif %}"
+                        data-sms-recipient
+                        data-source="customer"
+                        data-search="{{ customer.name|lower }} {{ customer.phone|lower }} {{ customer.normalized }}"
+                    >
+                        <input
+                            type="checkbox"
+                            name="recipients"
+                            value="customer:{{ customer.id }}"
+                            data-sms-recipient-check
+                            {% if customer.blocked %}disabled{% endif %}
+                        >
+                        <span class="sms-recipient-avatar">{{ customer.name|first|upper }}</span>
+                        <span class="sms-recipient-copy">
+                            <strong>{{ customer.name }}</strong>
+                            <small>{{ customer.phone }} <em>System customer</em></small>
+                        </span>
+                        {% if customer.blocked %}
+                            <span class="sms-recipient-state blocked">SMS blocked</span>
+                        {% else %}
+                            <span class="sms-check-ui"><svg viewBox="0 0 20 20"><path d="m5.5 10.2 3 3 6-6"/></svg></span>
+                        {% endif %}
+                    </label>
+                {% empty %}
+                    <div class="sms-empty-state" data-source-empty="customer"><strong>No customers with phone numbers</strong><small>Add phone numbers from the Customers page first.</small></div>
+                {% endfor %}
+
+                {% for contact in contacts %}
+                    <label
+                        class="sms-recipient-row is-hidden-source"
+                        data-sms-recipient
+                        data-source="contact"
+                        data-search="{{ contact.name|lower }} {{ contact.phone|lower }} {{ contact.normalized_phone }} {{ contact.group_name|lower }}"
+                    >
+                        <input type="checkbox" name="recipients" value="contact:{{ contact.id }}" data-sms-recipient-check>
+                        <span class="sms-recipient-avatar">{% if contact.name %}{{ contact.name|first|upper }}{% else %}# {% endif %}</span>
+                        <span class="sms-recipient-copy">
+                            <strong>{{ contact.name|default:"Saved contact" }}</strong>
+                            <small>{{ contact.phone }} {% if contact.group_name %}<em>{{ contact.group_name }}</em>{% endif %}</small>
+                        </span>
+                        <span class="sms-check-ui"><svg viewBox="0 0 20 20"><path d="m5.5 10.2 3 3 6-6"/></svg></span>
+                    </label>
+                {% empty %}
+                    <div class="sms-empty-state is-hidden-source" data-source-empty="contact"><strong>No SMS contacts yet</strong><small>Import a CSV or add contacts manually.</small></div>
+                {% endfor %}
+            </div>
+
+            <details class="sms-manual-box">
+                <summary>
+                    <span>
+                        <strong>Add manual numbers</strong>
+                        <small>For numbers not already saved in the system.</small>
+                    </span>
+                    <span class="sms-details-chevron"></span>
+                </summary>
+                <div class="sms-manual-body">
+                    <label class="field compact">
+                        <span>Numbers</span>
+                        <textarea class="form-control" name="manual_recipients" rows="4" placeholder="0712345678&#10;John, 0754000000&#10;255713000000"></textarea>
+                    </label>
+                    <div class="sms-manual-options">
+                        <label class="sms-check-label"><input type="checkbox" name="save_manual"> <span>Save valid manual numbers to SMS contacts</span></label>
+                        <label class="field compact sms-manual-group"><span>Group</span><input class="form-control" name="manual_group" placeholder="Optional group"></label>
+                    </div>
+                </div>
+            </details>
+        </section>
+
+        <section class="panel sms-compose-panel">
+            <div class="sms-step-head">
+                <span class="sms-step-number">02</span>
+                <div>
+                    <h2>Write message</h2>
+                    <p>Use a saved template or write a new message. Personalization tokens are supported.</p>
+                </div>
+            </div>
+
+            <div class="sms-message-grid">
+                <label class="field compact">
+                    <span>Campaign title <small>optional</small></span>
+                    <input class="form-control" name="title" placeholder="e.g. September service reminder">
+                </label>
+                <label class="field compact">
+                    <span>Sender ID</span>
+                    <select class="form-control" name="sender_id" required>
+                        {% for sender in sender_options %}
+                            <option value="{{ sender.value }}" {% if sender.default %}selected{% endif %}>{{ sender.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+
+            <div class="sms-template-strip">
+                <label>
+                    <span>Template</span>
+                    <select class="form-control" data-sms-template-select>
+                        <option value="">Write a new message</option>
+                        {% for template in templates %}
+                            <option value="{{ template.pk }}" data-body="{{ template.body|escape }}" {% if initial_template and initial_template.pk == template.pk %}selected{% endif %}>{{ template.name }}{% if template.category %} · {{ template.category }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <a class="sms-inline-action" href="{% url 'sms_center:template_create' %}">+ New template</a>
+            </div>
+
+            <div class="sms-editor-shell">
+                <textarea
+                    class="sms-editor"
+                    name="message"
+                    maxlength="1000"
+                    required
+                    data-sms-message
+                    placeholder="Write your message here..."
+                >{% if initial_template %}{{ initial_template.body }}{% endif %}</textarea>
+                <div class="sms-editor-footer">
+                    <div class="sms-token-row">
+                        <button type="button" data-sms-token="{name}">{name}</button>
+                        <button type="button" data-sms-token="{first_name}">{first_name}</button>
+                        <button type="button" data-sms-token="{phone}">{phone}</button>
+                    </div>
+                    <div class="sms-char-count">
+                        <span><b data-sms-char-count>0</b>/1000 chars</span>
+                        <span><b data-sms-segment-count>0</b> SMS segment</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sms-preview-box">
+                <span>Example preview</span>
+                <p data-sms-preview>Your message preview will appear here.</p>
+                <small>Preview uses “Customer” for personalization tokens. Each selected recipient receives their own name where available.</small>
+            </div>
+        </section>
+    </div>
+
+    <aside class="panel sms-send-summary">
+        <span class="eyebrow">Live summary</span>
+        <h2>Ready to send</h2>
+        <p>Review recipients and estimated SMS usage before sending.</p>
+
+        <div class="sms-summary-balance">
+            <div>
+                <span>Beem balance</span>
+                <strong data-sms-balance-value>{{ sms_balance.display }}</strong>
+            </div>
+            <button type="button" data-sms-refresh-balance data-url="{% url 'sms_center:balance' %}" aria-label="Refresh balance">
+                <svg viewBox="0 0 20 20"><path d="M16 7a6.5 6.5 0 1 0 .2 5"/><path d="M16 3v4h-4"/></svg>
+            </button>
+        </div>
+
+        <div class="sms-summary-list">
+            <div><span>Selected saved recipients</span><strong data-sms-summary-recipients>0</strong></div>
+            <div><span>Message characters</span><strong data-sms-summary-chars>0</strong></div>
+            <div><span>Segments / recipient</span><strong data-sms-summary-segments>0</strong></div>
+            <div class="sms-summary-total"><span>Estimated SMS units</span><strong data-sms-estimated-units>0</strong></div>
+        </div>
+
+        <div class="sms-summary-note">
+            Manual numbers are validated by the server and added to the final total after submission.
+        </div>
+
+        <div class="sms-client-error" data-sms-client-error hidden></div>
+
+        {% if not provider_configured %}
+            <div class="sms-provider-warning">
+                <strong>Beem is not configured</strong>
+                <span>Add API credentials to the server environment before sending.</span>
+            </div>
+        {% endif %}
+
+        <button class="btn btn-primary btn-block sms-send-button" type="submit" {% if not provider_configured %}disabled{% endif %}>
+            <svg class="btn-ico" viewBox="0 0 20 20"><path d="M3 10 17 3l-4 14-3-5z"/><path d="m10 12 7-9"/></svg>
+            Send SMS
+        </button>
+        <small class="sms-send-limit">Maximum {{ max_recipients }} recipients per campaign.</small>
+    </aside>
+</form>
+{% endblock %}

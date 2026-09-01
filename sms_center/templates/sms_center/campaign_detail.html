@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ campaign.title|default:"SMS Campaign" }} · WorldLink{% endblock %}
+{% block page_name %}SMS Campaign{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Campaign #{{ campaign.pk }}</span>
+        <h1>{{ campaign.title|default:"SMS Campaign" }}</h1>
+        <p>{{ campaign.created_at|date:"d M Y · H:i" }} · {{ campaign.created_by.display_name }} · Sender {{ campaign.sender_id }}</p>
+    </div>
+    <div class="head-actions"><a class="btn btn-secondary" href="{% url 'sms_center:history' %}">History</a><a class="btn btn-primary" href="{% url 'sms_center:send' %}">New message</a></div>
+</section>
+
+<div class="sms-campaign-kpis">
+    <div><span>Recipients</span><strong>{{ campaign.recipient_count }}</strong></div>
+    <div><span>Sent / accepted</span><strong>{{ campaign.sent_count }}</strong></div>
+    <div><span>Delivered</span><strong>{{ campaign.delivered_count }}</strong></div>
+    <div><span>Failed</span><strong>{{ campaign.failed_count }}</strong></div>
+    <div><span>Estimated units</span><strong>{{ campaign.estimated_units }}</strong></div>
+    <div><span>Campaign state</span><strong><span class="sms-status {{ campaign.status }}">{{ campaign.get_status_display }}</span></strong></div>
+</div>
+
+<div class="sms-campaign-grid">
+    <section class="panel sms-message-view">
+        <div class="panel-head"><div><h2>Message</h2><p>Original campaign message.</p></div></div>
+        <div class="sms-message-bubble">{{ campaign.message|linebreaksbr }}</div>
+        <div class="sms-message-meta"><span>{{ campaign.message|length }} characters</span><span>{{ campaign.segment_count }} base segment{{ campaign.segment_count|pluralize }}</span></div>
+    </section>
+
+    <section class="panel sms-provider-response">
+        <div class="panel-head"><div><h2>Provider</h2><p>Beem submission information.</p></div></div>
+        <dl>
+            <div><dt>Sender</dt><dd>{{ campaign.sender_id }}</dd></div>
+            <div><dt>Started</dt><dd>{{ campaign.started_at|date:"d M Y H:i:s"|default:"—" }}</dd></div>
+            <div><dt>Completed</dt><dd>{{ campaign.completed_at|date:"d M Y H:i:s"|default:"—" }}</dd></div>
+            <div><dt>Status</dt><dd>{{ campaign.get_status_display }}</dd></div>
+        </dl>
+        {% if request.user.is_company_admin and campaign.provider_response %}
+            <details class="sms-response-details"><summary>Technical provider response</summary><pre>{{ campaign.provider_response }}</pre></details>
+        {% endif %}
+    </section>
+</div>
+
+<section class="panel sms-list-panel">
+    <div class="panel-head">
+        <div><h2>Recipients</h2><p>Per-number sending and delivery state.</p></div>
+        <form method="get" class="sms-recipient-status-filter"><select class="form-control" name="status" onchange="this.form.submit()"><option value="">All recipients</option>{% for value,label in recipient_status_choices %}<option value="{{ value }}" {% if recipient_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></form>
+    </div>
+    <div class="table-wrap">
+        <table class="sms-table"><thead><tr><th>Recipient</th><th>Phone</th><th>Status</th><th>Provider status</th><th>Sent</th><th>Delivered</th><th>Error</th></tr></thead>
+        <tbody>{% for recipient in page %}<tr><td><strong class="table-primary">{{ recipient.name|default:"Customer" }}</strong>{% if recipient.customer %}<span class="cell-sub">System customer</span>{% elif recipient.contact %}<span class="cell-sub">SMS contact</span>{% else %}<span class="cell-sub">Manual number</span>{% endif %}</td><td class="sms-phone">{{ recipient.phone }}</td><td><span class="sms-status {{ recipient.status }}">{{ recipient.get_status_display }}</span></td><td>{{ recipient.provider_status|default:"—" }}</td><td>{{ recipient.sent_at|date:"d M H:i"|default:"—" }}</td><td>{{ recipient.delivered_at|date:"d M H:i"|default:"—" }}</td><td>{% if recipient.error_message %}<span class="sms-error-text">{{ recipient.error_message|truncatechars:70 }}</span>{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="7" class="empty">No recipients found.</td></tr>{% endfor %}</tbody></table>
+    </div>
+    {% if page.paginator.num_pages > 1 %}<div class="sms-pagination"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span><div>{% if page.has_previous %}<a class="btn btn-secondary btn-sm" href="?page={{ page.previous_page_number }}&status={{ recipient_status }}">Previous</a>{% endif %}{% if page.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ page.next_page_number }}&status={{ recipient_status }}">Next</a>{% endif %}</div></div>{% endif %}
+</section>
+{% endblock %}

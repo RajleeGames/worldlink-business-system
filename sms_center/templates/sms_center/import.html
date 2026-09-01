@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Import SMS Contacts · WorldLink{% endblock %}
+{% block page_name %}Import SMS Contacts{% endblock %}
+
+{% block content %}
+<section class="page-head compact-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Center</span>
+        <h1>Import contacts from CSV</h1>
+        <p>Upload a clean phone list. Tanzanian local numbers are automatically normalized to 255 format and duplicates are handled safely.</p>
+    </div>
+    <div class="head-actions"><a class="btn btn-secondary" href="{% url 'sms_center:contacts' %}">Back to contacts</a></div>
+</section>
+
+<div class="sms-import-grid">
+    <section class="panel sms-import-card">
+        <form method="post" enctype="multipart/form-data" class="sms-import-form">
+            {% csrf_token %}
+            <div class="sms-upload-zone" data-sms-drop-zone>
+                <input type="file" name="csv_file" accept=".csv,text/csv" required data-sms-file-input>
+                <span class="sms-upload-icon"><svg viewBox="0 0 20 20"><path d="M10 13V3M6.5 6.5 10 3l3.5 3.5"/><path d="M3 12v5h14v-5"/></svg></span>
+                <strong data-sms-file-name>Choose CSV file</strong>
+                <small>Drag and drop or click to browse · maximum 5 MB</small>
+            </div>
+
+            <div class="form-grid two sms-import-options">
+                <label class="field compact"><span>Default group <small>optional</small></span><input class="form-control" name="group_name" placeholder="e.g. CCTV Customers"></label>
+                <label class="sms-switch-card"><input type="checkbox" name="update_existing"><span><b>Update existing contacts</b><small>Existing matching phone numbers will be refreshed instead of skipped.</small></span></label>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Import contacts</button>
+        </form>
+    </section>
+
+    <aside class="panel sms-import-help">
+        <h2>CSV format</h2>
+        <p>The first row must contain column names. Only the phone column is required.</p>
+        <div class="sms-code-sample">
+            <span>name,phone,group</span>
+            <span>John,0712345678,CCTV</span>
+            <span>ABC Ltd,255754000000,Corporate</span>
+        </div>
+        <p>Accepted phone headings: <b>phone</b>, <b>mobile</b>, <b>number</b>, <b>phone_number</b>, <b>msisdn</b>.</p>
+        <a class="btn btn-secondary btn-block" href="{% url 'sms_center:sample_csv' %}" data-no-preloader>Download sample CSV</a>
+    </aside>
+</div>
+
+{% if recent_imports %}
+<section class="panel sms-list-panel">
+    <div class="panel-head"><div><h2>Recent imports</h2><p>Last CSV contact imports.</p></div></div>
+    <div class="table-wrap">
+        <table><thead><tr><th>File</th><th>Rows</th><th>Added</th><th>Updated</th><th>Skipped</th><th>Invalid</th><th>Imported by</th><th>Date</th></tr></thead>
+        <tbody>{% for batch in recent_imports %}<tr><td class="table-primary">{{ batch.filename }}</td><td>{{ batch.total_rows }}</td><td>{{ batch.imported_count }}</td><td>{{ batch.updated_count }}</td><td>{{ batch.skipped_count }}</td><td>{{ batch.error_count }}</td><td>{{ batch.created_by.display_name|default:"—" }}</td><td>{{ batch.created_at|date:"d M Y H:i" }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

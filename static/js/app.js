@@ -1510,4 +1510,293 @@
       drawCharts();
     }, 120);
   });
+
+  /* ------------------------------------------------------------
+     WORLDLINK ACCORDION SIDEBAR
+     One clean expandable navigation family at a time. Active sections
+     open automatically from Django classes in sidebar.html.
+  ------------------------------------------------------------ */
+  const navGroups = $$('[data-nav-group]');
+  const navGroupToggles = $$('[data-nav-group-toggle]');
+
+  const setNavGroupOpen = (group, open, remember = true) => {
+    if (!group) return;
+    group.classList.toggle('open', open);
+    group.querySelector('[data-nav-group-toggle]')
+      ?.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    if (remember && group.dataset.navGroup) {
+      if (open) localStorage.setItem('wl-open-nav-group', group.dataset.navGroup);
+      else if (localStorage.getItem('wl-open-nav-group') === group.dataset.navGroup) {
+        localStorage.removeItem('wl-open-nav-group');
+      }
+    }
+  };
+
+  const closeOtherNavGroups = current => {
+    navGroups.forEach(group => {
+      if (group !== current) setNavGroupOpen(group, false, false);
+    });
+  };
+
+  const expandDesktopSidebarForGroup = group => {
+    if (isMobile() || !document.body.classList.contains('sidebar-collapsed')) return false;
+    document.body.classList.remove('sidebar-collapsed');
+    localStorage.setItem('wl-sidebar-collapsed', '0');
+    syncSidebarToggle();
+    window.setTimeout(() => {
+      closeOtherNavGroups(group);
+      setNavGroupOpen(group, true);
+    }, 90);
+    return true;
+  };
+
+  navGroupToggles.forEach(toggle => {
+    toggle.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const group = toggle.closest('[data-nav-group]');
+      if (!group) return;
+
+      if (expandDesktopSidebarForGroup(group)) return;
+
+      const willOpen = !group.classList.contains('open');
+      if (willOpen) closeOtherNavGroups(group);
+      setNavGroupOpen(group, willOpen);
+    });
+  });
+
+  const activeNavGroup = navGroups.find(group => group.classList.contains('active-group'));
+  if (activeNavGroup) {
+    closeOtherNavGroups(activeNavGroup);
+    setNavGroupOpen(activeNavGroup, true, false);
+  } else {
+    const rememberedGroup = localStorage.getItem('wl-open-nav-group');
+    const remembered = navGroups.find(group => group.dataset.navGroup === rememberedGroup);
+    if (remembered && !document.body.classList.contains('sidebar-collapsed')) {
+      closeOtherNavGroups(remembered);
+      setNavGroupOpen(remembered, true, false);
+    }
+  }
+
+  $$('.wl-nav-subitem, .wl-nav-direct').forEach(link => {
+    link.addEventListener('click', () => {
+      if (isMobile()) closeMobileSidebar();
+    });
+  });
+
+})();
+
+/* ========================================================================== */
+/* V1.6 SMS CENTER                                                           */
+/* ========================================================================== */
+
+(() => {
+  const q = (selector, context = document) => context.querySelector(selector);
+  const qa = (selector, context = document) => [...context.querySelectorAll(selector)];
+
+  const segmentCount = message => {
+    const text = message || '';
+    if (!text.length) return 0;
+    const unicode = [...text].some(char => char.charCodeAt(0) > 127);
+    const single = unicode ? 70 : 160;
+    const multipart = unicode ? 67 : 153;
+    return text.length <= single ? 1 : Math.ceil(text.length / multipart);
+  };
+
+  const refreshBalance = async button => {
+    const url = button?.dataset.url;
+    if (!url || button.classList.contains('is-loading')) return;
+    button.classList.add('is-loading');
+    button.disabled = true;
+    try {
+      const response = await fetch(url, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        credentials: 'same-origin',
+      });
+      const data = await response.json();
+      qa('[data-sms-balance-value]').forEach(node => { node.textContent = data.display || 'Unavailable'; });
+      qa('[data-sms-balance-message]').forEach(node => { node.textContent = data.message || ''; });
+    } catch (_) {
+      qa('[data-sms-balance-message]').forEach(node => { node.textContent = 'Could not refresh balance.'; });
+    } finally {
+      button.classList.remove('is-loading');
+      button.disabled = false;
+    }
+  };
+
+  qa('[data-sms-refresh-balance]').forEach(button => {
+    button.addEventListener('click', () => refreshBalance(button));
+  });
+
+  const composer = q('[data-sms-compose]');
+  if (composer) {
+    const sourceTabs = qa('[data-sms-source]', composer);
+    const recipientRows = qa('[data-sms-recipient]', composer);
+    const checks = qa('[data-sms-recipient-check]', composer);
+    const search = q('[data-sms-recipient-search]', composer);
+    const selectedCount = q('[data-sms-selected-count]', composer);
+    const summaryRecipients = q('[data-sms-summary-recipients]', composer);
+    const message = q('[data-sms-message]', composer);
+    const charCount = q('[data-sms-char-count]', composer);
+    const segmentCountNode = q('[data-sms-segment-count]', composer);
+    const summaryChars = q('[data-sms-summary-chars]', composer);
+    const summarySegments = q('[data-sms-summary-segments]', composer);
+    const estimatedUnits = q('[data-sms-estimated-units]', composer);
+    const preview = q('[data-sms-preview]', composer);
+    const templateSelect = q('[data-sms-template-select]', composer);
+    let activeSource = 'customer';
+
+    const updateRecipients = () => {
+      const selected = checks.filter(input => input.checked && !input.disabled).length;
+      if (selectedCount) selectedCount.textContent = selected.toLocaleString();
+      if (summaryRecipients) summaryRecipients.textContent = selected.toLocaleString();
+      const segments = segmentCount(message?.value || '');
+      if (estimatedUnits) estimatedUnits.textContent = (selected * segments).toLocaleString();
+    };
+
+    const updateMessage = () => {
+      const value = message?.value || '';
+      const segments = segmentCount(value);
+      if (charCount) charCount.textContent = value.length.toLocaleString();
+      if (segmentCountNode) {
+        segmentCountNode.textContent = segments.toLocaleString();
+        const suffix = segmentCountNode.parentElement;
+        if (suffix) {
+          suffix.lastChild.textContent = segments === 1 ? ' SMS segment' : ' SMS segments';
+        }
+      }
+      if (summaryChars) summaryChars.textContent = value.length.toLocaleString();
+      if (summarySegments) summarySegments.textContent = segments.toLocaleString();
+      if (preview) {
+        const sample = value
+          .replaceAll('{name}', 'Customer')
+          .replaceAll('{first_name}', 'Customer')
+          .replaceAll('{phone}', '255700000000');
+        preview.textContent = sample || 'Your message preview will appear here.';
+      }
+      updateRecipients();
+    };
+
+    const applyRecipientFilter = () => {
+      const term = (search?.value || '').trim().toLowerCase();
+      recipientRows.forEach(row => {
+        const sameSource = row.dataset.source === activeSource;
+        const matches = !term || (row.dataset.search || '').includes(term);
+        row.classList.toggle('is-hidden-source', !sameSource);
+        row.classList.toggle('is-filtered', sameSource && !matches);
+      });
+      qa('[data-source-empty]', composer).forEach(node => {
+        node.classList.toggle('is-hidden-source', node.dataset.sourceEmpty !== activeSource);
+      });
+    };
+
+    sourceTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeSource = tab.dataset.smsSource || 'customer';
+        sourceTabs.forEach(item => item.classList.toggle('active', item === tab));
+        applyRecipientFilter();
+      });
+    });
+
+    search?.addEventListener('input', applyRecipientFilter);
+    checks.forEach(input => input.addEventListener('change', updateRecipients));
+
+    q('[data-sms-select-visible]', composer)?.addEventListener('click', () => {
+      recipientRows.forEach(row => {
+        if (row.classList.contains('is-hidden-source') || row.classList.contains('is-filtered') || row.classList.contains('is-disabled')) return;
+        const input = q('[data-sms-recipient-check]', row);
+        if (input && !input.disabled) input.checked = true;
+      });
+      updateRecipients();
+    });
+
+    q('[data-sms-clear-selection]', composer)?.addEventListener('click', () => {
+      checks.forEach(input => { input.checked = false; });
+      updateRecipients();
+    });
+
+    message?.addEventListener('input', updateMessage);
+
+    qa('[data-sms-token]', composer).forEach(button => {
+      button.addEventListener('click', () => {
+        if (!message) return;
+        const token = button.dataset.smsToken || '';
+        const start = message.selectionStart ?? message.value.length;
+        const end = message.selectionEnd ?? message.value.length;
+        message.setRangeText(token, start, end, 'end');
+        message.focus();
+        updateMessage();
+      });
+    });
+
+    templateSelect?.addEventListener('change', () => {
+      const option = templateSelect.options[templateSelect.selectedIndex];
+      const body = option?.dataset.body;
+      if (body !== undefined && message) {
+        message.value = body;
+        updateMessage();
+        message.focus();
+      }
+    });
+
+    const clientError = q('[data-sms-client-error]', composer);
+    const showClientError = text => {
+      if (!clientError) return;
+      clientError.textContent = text;
+      clientError.hidden = false;
+      clientError.scrollIntoView({behavior:'smooth', block:'nearest'});
+    };
+    const clearClientError = () => {
+      if (!clientError) return;
+      clientError.textContent = '';
+      clientError.hidden = true;
+    };
+
+    composer.addEventListener('submit', event => {
+      clearClientError();
+      const selected = checks.filter(input => input.checked && !input.disabled).length;
+      const manual = composer.querySelector('[name="manual_recipients"]')?.value.trim() || '';
+      if (!selected && !manual) {
+        event.preventDefault();
+        showClientError('Select at least one recipient or enter a manual phone number.');
+        sourceTabs[0]?.focus();
+        return;
+      }
+      if (!message?.value.trim()) {
+        event.preventDefault();
+        showClientError('Write the SMS message before sending.');
+        message?.focus();
+      }
+    });
+
+    applyRecipientFilter();
+    updateMessage();
+    updateRecipients();
+  }
+
+  const fileInput = q('[data-sms-file-input]');
+  const dropZone = q('[data-sms-drop-zone]');
+  const fileName = q('[data-sms-file-name]');
+  if (fileInput && dropZone) {
+    const syncName = () => {
+      if (fileName) fileName.textContent = fileInput.files?.[0]?.name || 'Choose CSV file';
+    };
+    fileInput.addEventListener('change', syncName);
+    ['dragenter','dragover'].forEach(name => dropZone.addEventListener(name, () => dropZone.classList.add('is-dragging')));
+    ['dragleave','drop'].forEach(name => dropZone.addEventListener(name, () => dropZone.classList.remove('is-dragging')));
+  }
+
+  qa('[data-sms-counter-input]').forEach(input => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'sms-inline-counter';
+    input.insertAdjacentElement('afterend', wrapper);
+    const sync = () => {
+      const segments = segmentCount(input.value || '');
+      wrapper.textContent = `${input.value.length} chars · ${segments} SMS segment${segments === 1 ? '' : 's'}`;
+    };
+    input.addEventListener('input', sync);
+    sync();
+  });
 })();

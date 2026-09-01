@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Contacts · WorldLink{% endblock %}
+{% block page_name %}SMS Contacts{% endblock %}
+
+{% block content %}
+<section class="page-head sms-page-head">
+    <div>
+        <span class="eyebrow">SMS Center</span>
+        <h1>Contacts</h1>
+        <p>Reusable SMS contacts imported from CSV, entered manually or synced from WorldLink customers.</p>
+    </div>
+    <div class="head-actions">
+        <form method="post" action="{% url 'sms_center:sync_customers' %}" data-no-preloader>
+            {% csrf_token %}
+            <button class="btn btn-secondary" type="submit">Sync customers</button>
+        </form>
+        <a class="btn btn-secondary" href="{% url 'sms_center:import_contacts' %}">Import CSV</a>
+        <a class="btn btn-primary" href="{% url 'sms_center:contact_create' %}">+ New Contact</a>
+    </div>
+</section>
+
+<div class="sms-mini-kpis">
+    <div><span>Active & allowed</span><strong>{{ active_count }}</strong></div>
+    <div><span>SMS blocked</span><strong>{{ blocked_count }}</strong></div>
+    <div><span>Total records</span><strong>{{ page.paginator.count }}</strong></div>
+</div>
+
+<section class="panel sms-list-panel">
+    <form method="get" class="sms-filter-bar">
+        <label class="sms-filter-search">
+            <svg viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="m12.3 12.3 4.2 4.2"/></svg>
+            <input name="q" value="{{ query }}" placeholder="Search name, phone or group">
+        </label>
+        <select class="form-control" name="source">
+            <option value="">All sources</option>
+            {% for value,label in source_choices %}<option value="{{ value }}" {% if source == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select class="form-control" name="group">
+            <option value="">All groups</option>
+            {% for item in groups %}<option value="{{ item }}" {% if group == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary" type="submit">Filter</button>
+        {% if query or source or group %}<a class="btn btn-secondary" href="{% url 'sms_center:contacts' %}">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-wrap">
+        <table class="sms-table">
+            <thead><tr><th>Contact</th><th>Phone</th><th>Group</th><th>Source</th><th>Permission</th><th>Updated</th><th></th></tr></thead>
+            <tbody>
+            {% for contact in page %}
+                <tr>
+                    <td><strong class="table-primary">{{ contact.name|default:"Unnamed contact" }}</strong>{% if contact.customer %}<span class="cell-sub">Linked to system customer</span>{% endif %}</td>
+                    <td><span class="sms-phone">{{ contact.normalized_phone }}</span><span class="cell-sub">{{ contact.phone }}</span></td>
+                    <td>{% if contact.group_name %}<span class="sms-group-chip">{{ contact.group_name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ contact.get_source_display }}</td>
+                    <td>{% if not contact.is_active %}<span class="sms-status draft">Inactive</span>{% elif contact.sms_allowed %}<span class="sms-status delivered">Allowed</span>{% else %}<span class="sms-status failed">Blocked</span>{% endif %}</td>
+                    <td>{{ contact.updated_at|date:"d M Y" }}</td>
+                    <td>
+                        <div class="sms-row-actions">
+                            <a href="{% url 'sms_center:contact_edit' contact.pk %}">Edit</a>
+                            {% if request.user.is_company_admin %}<a class="danger" href="{% url 'sms_center:contact_delete' contact.pk %}">Delete</a>{% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="empty">No SMS contacts match this filter.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page.paginator.num_pages > 1 %}
+    <div class="sms-pagination">
+        <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        <div>
+            {% if page.has_previous %}<a class="btn btn-secondary btn-sm" href="?page={{ page.previous_page_number }}&q={{ query|urlencode }}&source={{ source|urlencode }}&group={{ group|urlencode }}">Previous</a>{% endif %}
+            {% if page.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ page.next_page_number }}&q={{ query|urlencode }}&source={{ source|urlencode }}&group={{ group|urlencode }}">Next</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
