@@ -39,6 +39,11 @@ urlpatterns = [
     path("projects/<int:pk>/delete/", views.project_delete, name="project_delete"),
 
     path("debts/", views.debts, name="debts"),
+    path("debts/manual/new/", views.manual_debt_create, name="manual_debt_create"),
+    path("debts/manual/<int:pk>/", views.manual_debt_detail, name="manual_debt_detail"),
+    path("debts/manual/<int:pk>/edit/", views.manual_debt_edit, name="manual_debt_edit"),
+    path("debts/manual/<int:pk>/delete/", views.manual_debt_delete, name="manual_debt_delete"),
+    path("debts/manual/<int:pk>/payment/", views.manual_debt_payment_add, name="manual_debt_payment_add"),
 
     path("money/accounts/", views.money_accounts, name="money_accounts"),
     path("money/accounts/new/", views.money_account_create, name="money_account_create"),

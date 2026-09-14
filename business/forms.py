@@ -1,9 +1,14 @@
+from decimal import Decimal
+
 from django import forms
+from django.db.models import Q
 from .models import (
     CompanySetting,
     Customer,
     DayClose,
     Expense,
+    ManualDebt,
+    ManualDebtPayment,
     MoneyAccount,
     MoneyTransfer,
     Product,
@@ -38,6 +43,138 @@ class CustomerForm(StyledModelForm):
     class Meta:
         model = Customer
         fields = ["name", "phone", "email", "address", "notes", "is_active"]
+
+
+class ManualDebtForm(StyledModelForm):
+    class Meta:
+        model = ManualDebt
+        fields = [
+            "customer",
+            "debtor_name",
+            "phone",
+            "source_account",
+            "amount",
+            "debt_date",
+            "disbursement_reference",
+            "due_date",
+            "reason",
+            "notes",
+        ]
+        labels = {
+            "customer": "Existing customer (optional)",
+            "debtor_name": "Person / debtor name",
+            "source_account": "Money given from account",
+            "amount": "Amount lent / owed (TZS)",
+            "debt_date": "Loan / debt date",
+            "disbursement_reference": "Outgoing reference (optional)",
+            "due_date": "Due date (optional)",
+            "reason": "Reason / what the debt is for",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["customer"].queryset = Customer.objects.filter(is_active=True).order_by("name")
+        source_qs = MoneyAccount.objects.filter(is_active=True)
+        if self.instance and self.instance.pk and self.instance.source_account_id:
+            source_qs = MoneyAccount.objects.filter(
+                Q(is_active=True) | Q(pk=self.instance.source_account_id)
+            )
+        self.fields["source_account"].queryset = source_qs.order_by("name")
+        self.fields["source_account"].required = True
+        self.fields["debtor_name"].required = False
+        self.fields["debt_date"].widget = forms.DateInput(attrs={"type": "date", "class": "form-control"})
+        self.fields["due_date"].widget = forms.DateInput(attrs={"type": "date", "class": "form-control"})
+        self.fields["amount"].widget.attrs.update({"min": "0.01", "step": "0.01", "inputmode": "decimal"})
+        self.fields["debtor_name"].widget.attrs.setdefault("placeholder", "e.g. John, Asha, ABC Company")
+        self.fields["phone"].widget.attrs.setdefault("placeholder", "Optional phone number")
+        self.fields["disbursement_reference"].widget.attrs.setdefault(
+            "placeholder", "e.g. CRDB transfer ref, M-Pesa ID, cash voucher"
+        )
+        self.fields["reason"].widget.attrs.setdefault("placeholder", "e.g. Personal loan, previous service, equipment balance")
+
+    def clean(self):
+        cleaned = super().clean()
+        customer = cleaned.get("customer")
+        debtor_name = (cleaned.get("debtor_name") or "").strip()
+        phone = (cleaned.get("phone") or "").strip()
+        amount = cleaned.get("amount")
+        source_account = cleaned.get("source_account")
+        debt_date = cleaned.get("debt_date")
+        due_date = cleaned.get("due_date")
+
+        if not debtor_name and customer:
+            debtor_name = customer.name
+            cleaned["debtor_name"] = debtor_name
+
+        if not debtor_name:
+            self.add_error("debtor_name", "Enter the person/company name or choose an existing customer.")
+
+        if customer and not phone and customer.phone:
+            cleaned["phone"] = customer.phone
+
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Debt amount must be greater than zero.")
+
+        if self.instance and self.instance.pk and amount is not None:
+            already_paid = self.instance.amount_paid
+            if amount < already_paid:
+                self.add_error(
+                    "amount",
+                    f"Amount cannot be below the amount already paid (TZS {already_paid:,.2f}).",
+                )
+
+        if source_account and amount is not None and amount > 0:
+            available = source_account.current_balance
+            if (
+                self.instance
+                and self.instance.pk
+                and self.instance.source_account_id == source_account.pk
+            ):
+                # current_balance already includes this debt as money-out; add the
+                # old principal back before validating a correction/edit.
+                available += self.instance.amount
+            if amount > available:
+                self.add_error(
+                    "amount",
+                    f"This loan is greater than the available balance in {source_account.name} "
+                    f"(TZS {available:,.2f}).",
+                )
+
+        if debt_date and due_date and due_date < debt_date:
+            self.add_error("due_date", "Due date cannot be earlier than the debt date.")
+
+        return cleaned
+
+
+class ManualDebtPaymentForm(StyledModelForm):
+    class Meta:
+        model = ManualDebtPayment
+        fields = ["account", "amount", "reference", "notes"]
+        labels = {
+            "account": "Money account received into",
+            "amount": "Payment amount (TZS)",
+            "reference": "Reference (optional)",
+            "notes": "Payment note (optional)",
+        }
+
+    def __init__(self, *args, debt=None, **kwargs):
+        self.debt = debt
+        super().__init__(*args, **kwargs)
+        self.fields["account"].queryset = MoneyAccount.objects.filter(is_active=True).order_by("name")
+        self.fields["amount"].widget.attrs.update({"min": "0.01", "step": "0.01", "inputmode": "decimal"})
+        if debt:
+            self.fields["amount"].widget.attrs["max"] = str(debt.balance)
+            self.fields["amount"].help_text = f"Outstanding balance: TZS {debt.balance:,.2f}"
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get("amount")
+        if amount is None:
+            return amount
+        if amount <= 0:
+            raise forms.ValidationError("Payment must be greater than zero.")
+        if self.debt and amount > self.debt.balance:
+            raise forms.ValidationError("Payment cannot be greater than the remaining debt balance.")
+        return amount
 
 
 class ProductForm(StyledModelForm):
@@ -111,7 +248,6 @@ class DayCloseForm(StyledModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date"].widget = forms.DateInput(attrs={"type": "date", "class": "form-control"})
-
 
 
 class TransactionCreateForm(forms.Form):

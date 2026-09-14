@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load business_tags %}
+{% block page_name %}Manual Debt{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <span class="eyebrow">Manual Debt</span>
+        <h1>{{ debt.debtor_name }}</h1>
+        <p>{{ debt.reason }}</p>
+    </div>
+    <div class="head-actions">
+        {% if debt.balance > 0 %}
+            <a class="btn btn-primary" href="{% url 'manual_debt_payment_add' debt.pk %}">
+                + Record Payment
+            </a>
+        {% endif %}
+        {% if request.user.is_company_admin %}
+            <a class="btn" href="{% url 'manual_debt_edit' debt.pk %}">Edit</a>
+        {% endif %}
+        <a class="btn" href="{% url 'debts' %}">Back to Debts</a>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="page-head">
+        <div>
+            <h2>Debt Summary</h2>
+            <p>Original amount, repayments and current balance.</p>
+        </div>
+        <span class="badge {{ debt.status }}">{{ debt.status_label }}</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Person / Company</th>
+                    <td>{{ debt.debtor_name }}</td>
+                    <th>Phone</th>
+                    <td>{{ debt.phone|default:'—' }}</td>
+                </tr>
+                <tr>
+                    <th>Money Given From</th>
+                    <td>{{ debt.source_account.name|default:'Not set' }}</td>
+                    <th>Outgoing Reference</th>
+                    <td>{{ debt.disbursement_reference|default:'—' }}</td>
+                </tr>
+                <tr>
+                    <th>Original Debt</th>
+                    <td>TZS {{ debt.amount|money }}</td>
+                    <th>Paid Back</th>
+                    <td>TZS {{ debt.amount_paid|money }}</td>
+                </tr>
+                <tr>
+                    <th>Balance</th>
+                    <td class="num debt">TZS {{ debt.balance|money }}</td>
+                    <th>Debt Date</th>
+                    <td>{{ debt.debt_date|date:"d M Y" }}</td>
+                </tr>
+                <tr>
+                    <th>Due Date</th>
+                    <td>
+                        {% if debt.due_date %}
+                            {{ debt.due_date|date:"d M Y" }}
+                            {% if debt.is_overdue %} · Overdue{% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <th>Linked Customer</th>
+                    <td>{{ debt.customer|default:'—' }}</td>
+                </tr>
+                <tr>
+                    <th>Reason</th>
+                    <td colspan="3">{{ debt.reason }}</td>
+                </tr>
+                {% if debt.notes %}
+                    <tr>
+                        <th>Notes</th>
+                        <td colspan="3">{{ debt.notes }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="page-head">
+        <div>
+            <h2>Payment History</h2>
+            <p>Each repayment shows exactly which account received the money back.</p>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Account</th>
+                    <th>Amount</th>
+                    <th>Reference</th>
+                    <th>Received By</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                    <tr>
+                        <td>{{ p.created_at|date:"d M Y H:i" }}</td>
+                        <td>{{ p.account.name }}</td>
+                        <td class="num">TZS {{ p.amount|money }}</td>
+                        <td>{{ p.reference|default:'—' }}</td>
+                        <td>{{ p.received_by }}</td>
+                        <td>{{ p.notes|default:'—' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty">No payments recorded yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if request.user.is_company_admin %}
+<section class="panel">
+    <div class="page-head">
+        <div>
+            <h2>Administration</h2>
+            <p>Debts with payment history cannot be deleted.</p>
+        </div>
+        <div class="head-actions">
+            <a class="danger-link" href="{% url 'manual_debt_delete' debt.pk %}">Delete Debt</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

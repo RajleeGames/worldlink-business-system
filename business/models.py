@@ -33,6 +33,70 @@ class Customer(TimeStampedModel):
     is_active = models.BooleanField(default=True)
     def __str__(self): return self.name
 
+
+class ManualDebt(TimeStampedModel):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="manual_debts",
+        null=True,
+        blank=True,
+    )
+    debtor_name = models.CharField(max_length=160)
+    phone = models.CharField(max_length=40, blank=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    source_account = models.ForeignKey(
+        "MoneyAccount",
+        on_delete=models.PROTECT,
+        related_name="manual_debts_given",
+        null=True,
+    )
+    disbursement_reference = models.CharField(max_length=120, blank=True)
+    debt_date = models.DateField(default=timezone.localdate)
+    due_date = models.DateField(null=True, blank=True)
+    reason = models.CharField(max_length=255)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="manual_debts_created",
+    )
+
+    class Meta:
+        ordering = ["-debt_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.debtor_name} - {self.amount}"
+
+    @property
+    def amount_paid(self):
+        return sum((payment.amount for payment in self.payments.all()), Decimal("0"))
+
+    @property
+    def balance(self):
+        return max(Decimal("0"), self.amount - self.amount_paid)
+
+    @property
+    def status(self):
+        if self.balance <= 0:
+            return "paid"
+        if self.amount_paid > 0:
+            return "partial"
+        return "unpaid"
+
+    @property
+    def status_label(self):
+        if self.status == "paid":
+            return "Paid"
+        if self.status == "partial":
+            return "Partially Paid"
+        return "Unpaid"
+
+    @property
+    def is_overdue(self):
+        return bool(self.due_date and self.balance > 0 and self.due_date < timezone.localdate())
+
+
 class MoneyAccount(TimeStampedModel):
     class Type(models.TextChoices):
         CASH="cash","Cash"
@@ -46,11 +110,40 @@ class MoneyAccount(TimeStampedModel):
     @property
     def current_balance(self):
         incoming = self.payments.exclude(transaction__status="void").aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
+        manual_debt_incoming = self.manual_debt_payments.aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
+        manual_debt_outgoing = self.manual_debts_given.aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
         expense = self.expenses.aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
         purchases = self.stock_purchases.aggregate(v=models.Sum(models.F("quantity") * models.F("unit_cost"), output_field=models.DecimalField(max_digits=14, decimal_places=2)))["v"] or Decimal("0")
         transfer_in = self.transfers_in.aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
         transfer_out = self.transfers_out.aggregate(v=models.Sum("amount"))["v"] or Decimal("0")
-        return self.opening_balance + incoming + transfer_in - expense - purchases - transfer_out
+        return self.opening_balance + incoming + manual_debt_incoming + transfer_in - expense - purchases - transfer_out - manual_debt_outgoing
+
+
+class ManualDebtPayment(TimeStampedModel):
+    debt = models.ForeignKey(
+        ManualDebt,
+        on_delete=models.CASCADE,
+        related_name="payments",
+    )
+    account = models.ForeignKey(
+        MoneyAccount,
+        on_delete=models.PROTECT,
+        related_name="manual_debt_payments",
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.CharField(max_length=255, blank=True)
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="manual_debt_payments_received",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.debt.debtor_name} - {self.amount}"
 
 class Service(TimeStampedModel):
     category = models.CharField(max_length=100, blank=True)

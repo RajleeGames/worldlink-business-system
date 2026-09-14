@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 import json
 import uuid
@@ -19,6 +19,8 @@ from .forms import (
     CustomerForm,
     DayCloseForm,
     ExpenseForm,
+    ManualDebtForm,
+    ManualDebtPaymentForm,
     MoneyAccountForm,
     ProductForm,
     ProjectForm,
@@ -33,6 +35,8 @@ from .models import (
     Customer,
     DayClose,
     Expense,
+    ManualDebt,
+    ManualDebtPayment,
     MoneyAccount,
     MoneyTransfer,
     Payment,
@@ -261,7 +265,20 @@ def dashboard(request):
         "today_expenses": expenses,
         "today_gross": gross,
         "today_net": net,
-        "debts": sum((item.balance for item in tx.exclude(status=Transaction.Status.PAID)), Decimal("0")),
+        "debts": (
+            sum(
+                (item.balance for item in tx.exclude(status=Transaction.Status.PAID)),
+                Decimal("0"),
+            )
+            + sum(
+                (
+                    item.balance
+                    for item in ManualDebt.objects.prefetch_related("payments").all()
+                    if item.balance > 0
+                ),
+                Decimal("0"),
+            )
+        ),
         "month_revenue": revenue,
         "month_expenses": expenses,
         "month_net": net,
@@ -1079,14 +1096,238 @@ def transfers(request):
 
 @login_required
 def debts(request):
-    items = [
+    transaction_items = [
         item
-        for item in Transaction.objects.exclude(status__in=[Transaction.Status.PAID, Transaction.Status.VOID])
-        .select_related("customer")
-        .order_by("-created_at")
+        for item in (
+            Transaction.objects
+            .exclude(status__in=[Transaction.Status.PAID, Transaction.Status.VOID])
+            .select_related("customer")
+            .order_by("-created_at")
+        )
         if item.balance > 0
     ]
-    return render(request, "transactions/debts.html", {"items": items, "total_debt": sum((x.balance for x in items), Decimal("0"))})
+
+    q = (request.GET.get("q") or "").strip()
+    status_filter = (request.GET.get("manual_status") or "open").strip().lower()
+
+    manual_qs = (
+        ManualDebt.objects
+        .select_related("customer", "created_by", "source_account")
+        .prefetch_related("payments")
+        .order_by("-debt_date", "-created_at")
+    )
+
+    if q:
+        manual_qs = manual_qs.filter(
+            Q(debtor_name__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(reason__icontains=q)
+            | Q(notes__icontains=q)
+            | Q(customer__name__icontains=q)
+        )
+
+    manual_items = list(manual_qs)
+
+    if status_filter == "paid":
+        manual_items = [item for item in manual_items if item.balance <= 0]
+    elif status_filter == "all":
+        pass
+    else:
+        status_filter = "open"
+        manual_items = [item for item in manual_items if item.balance > 0]
+
+    transaction_total = sum(
+        (item.balance for item in transaction_items),
+        Decimal("0"),
+    )
+    all_manual_debts = ManualDebt.objects.prefetch_related("payments").all()
+    manual_total = sum(
+        (item.balance for item in all_manual_debts if item.balance > 0),
+        Decimal("0"),
+    )
+
+    return render(
+        request,
+        "transactions/debts.html",
+        {
+            "items": transaction_items,
+            "manual_items": manual_items,
+            "transaction_debt": transaction_total,
+            "manual_debt": manual_total,
+            "total_debt": transaction_total + manual_total,
+            "q": q,
+            "manual_status": status_filter,
+        },
+    )
+
+
+@login_required
+def manual_debt_create(request):
+    form = ManualDebtForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        obj = form.save(commit=False)
+        obj.created_by = request.user
+        obj.save()
+
+        audit(
+            request,
+            "Created manual debt / loan",
+            f"{obj.debtor_name} - TZS {obj.amount} from {obj.source_account}",
+        )
+        messages.success(
+            request,
+            f"Debt saved. TZS {obj.amount:,.2f} was recorded as money out from {obj.source_account}.",
+        )
+        return redirect("manual_debt_detail", pk=obj.pk)
+
+    return _render_form_page(
+        request,
+        form,
+        title="Add manual / personal debt",
+        subtitle=(
+            "Record who owes you, how much was given, and exactly which "
+            "money account the funds came from."
+        ),
+        submit_label="Save Debt",
+        cancel_url=reverse("debts"),
+        eyebrow="Debts",
+    )
+
+
+@login_required
+def manual_debt_detail(request, pk):
+    obj = get_object_or_404(
+        ManualDebt.objects
+        .select_related("customer", "created_by", "source_account")
+        .prefetch_related("payments"),
+        pk=pk,
+    )
+    payments = (
+        obj.payments
+        .select_related("account", "received_by")
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "transactions/manual_debt_detail.html",
+        {
+            "debt": obj,
+            "payments": payments,
+        },
+    )
+
+
+@admin_required
+def manual_debt_edit(request, pk):
+    obj = get_object_or_404(ManualDebt, pk=pk)
+    form = ManualDebtForm(request.POST or None, instance=obj)
+
+    if request.method == "POST" and form.is_valid():
+        obj = form.save()
+        audit(
+            request,
+            "Updated manual debt",
+            f"{obj.debtor_name} - TZS {obj.amount}",
+        )
+        messages.success(request, "Manual debt updated.")
+        return redirect("manual_debt_detail", pk=obj.pk)
+
+    return _render_form_page(
+        request,
+        form,
+        title="Edit manual debt",
+        subtitle="Update debtor details, original amount, dates, reason or notes.",
+        submit_label="Save Changes",
+        cancel_url=reverse("manual_debt_detail", kwargs={"pk": obj.pk}),
+        eyebrow="Debts",
+    )
+
+
+@admin_required
+def manual_debt_delete(request, pk):
+    obj = get_object_or_404(ManualDebt, pk=pk)
+
+    if request.method == "POST":
+        if obj.payments.exists():
+            messages.error(
+                request,
+                (
+                    "This debt already has payment history and cannot be deleted. "
+                    "Keep it for the financial audit trail."
+                ),
+            )
+            return redirect("manual_debt_detail", pk=obj.pk)
+
+        label = f"{obj.debtor_name} - TZS {obj.amount}"
+        obj.delete()
+        audit(request, "Deleted manual debt", label)
+        messages.success(request, "Manual debt deleted.")
+        return redirect("debts")
+
+    return render(
+        request,
+        "shared/confirm_delete.html",
+        {
+            "object": obj,
+            "delete_title": "Delete manual debt?",
+            "delete_subtitle": (
+                "This permanently removes the debt. Debts with payment history "
+                "cannot be deleted."
+            ),
+            "cancel_url": reverse("manual_debt_detail", kwargs={"pk": obj.pk}),
+        },
+    )
+
+
+@login_required
+@db_transaction.atomic
+def manual_debt_payment_add(request, pk):
+    debt = get_object_or_404(
+        ManualDebt.objects.select_for_update().prefetch_related("payments"),
+        pk=pk,
+    )
+
+    if debt.balance <= 0:
+        messages.info(request, "This debt is already fully paid.")
+        return redirect("manual_debt_detail", pk=debt.pk)
+
+    form = ManualDebtPaymentForm(request.POST or None, debt=debt)
+
+    if request.method == "POST" and form.is_valid():
+        payment = form.save(commit=False)
+
+        # The row is locked, so re-check the remaining balance before saving.
+        if payment.amount > debt.balance:
+            form.add_error(
+                "amount",
+                "Payment cannot be greater than the current remaining balance.",
+            )
+        else:
+            payment.debt = debt
+            payment.received_by = request.user
+            payment.save()
+
+            audit(
+                request,
+                "Recorded manual debt payment",
+                f"{debt.debtor_name} - TZS {payment.amount} into {payment.account}",
+            )
+            messages.success(
+                request,
+                f"Debt payment recorded. TZS {payment.amount:,.2f} returned into {payment.account}.",
+            )
+            return redirect("manual_debt_detail", pk=debt.pk)
+
+    return _render_form_page(
+        request,
+        form,
+        title=f"Record payment - {debt.debtor_name}",
+        subtitle=f"Outstanding balance: TZS {debt.balance:,.2f}",
+        submit_label="Record Payment",
+        cancel_url=reverse("manual_debt_detail", kwargs={"pk": debt.pk}),
+        eyebrow="Debts",
+    )
 
 
 @admin_required
@@ -1133,8 +1374,26 @@ def day_close(request):
     cash = MoneyAccount.objects.filter(account_type=MoneyAccount.Type.CASH, is_active=True).first()
     previous = DayClose.objects.filter(date__lt=today).order_by("-date").first()
     opening = previous.actual_cash if previous else (cash.opening_balance if cash else Decimal("0"))
-    cash_in = (
-        cash.payments.exclude(transaction__status=Transaction.Status.VOID).filter(created_at__date=today).aggregate(v=Sum("amount"))["v"] or Decimal("0")
+    transaction_cash_in = (
+        cash.payments
+        .exclude(transaction__status=Transaction.Status.VOID)
+        .filter(created_at__date=today)
+        .aggregate(v=Sum("amount"))["v"] or Decimal("0")
+        if cash
+        else Decimal("0")
+    )
+    manual_debt_cash_in = (
+        cash.manual_debt_payments
+        .filter(created_at__date=today)
+        .aggregate(v=Sum("amount"))["v"] or Decimal("0")
+        if cash
+        else Decimal("0")
+    )
+    cash_in = transaction_cash_in + manual_debt_cash_in
+    manual_debt_cash_out = (
+        cash.manual_debts_given
+        .filter(debt_date=today)
+        .aggregate(v=Sum("amount"))["v"] or Decimal("0")
         if cash
         else Decimal("0")
     )
@@ -1157,7 +1416,7 @@ def day_close(request):
         if cash
         else Decimal("0")
     )
-    expected = opening + cash_in + transfer_in - cash_expenses - purchase_total - transfer_out
+    expected = opening + cash_in + transfer_in - cash_expenses - purchase_total - transfer_out - manual_debt_cash_out
     form = DayCloseForm(request.POST or None, initial={"date": today, "opening_cash": opening, "expected_cash": expected})
     if request.method == "POST" and form.is_valid():
         obj = form.save(commit=False)
@@ -1174,7 +1433,8 @@ def day_close(request):
             "items": DayClose.objects.order_by("-date")[:60],
             "cash_account": cash,
             "cash_in": cash_in,
-            "cash_out": cash_expenses + purchase_total + transfer_out,
+            "cash_out": cash_expenses + purchase_total + transfer_out + manual_debt_cash_out,
+            "manual_debt_cash_out": manual_debt_cash_out,
             "transfer_in": transfer_in,
             "opening": opening,
             "expected": expected,
@@ -1187,6 +1447,33 @@ def ledger(request):
     entries = []
     for payment in Payment.objects.exclude(transaction__status=Transaction.Status.VOID).select_related("transaction", "account", "received_by").order_by("-created_at")[:500]:
         entries.append({"date": payment.created_at, "type": "Income", "description": f"{payment.transaction.number} · {payment.transaction.description}", "account": payment.account.name, "amount": payment.amount, "direction": "in"})
+    for debt in (
+        ManualDebt.objects
+        .exclude(source_account__isnull=True)
+        .select_related("source_account", "created_by")
+        .order_by("-debt_date", "-created_at")[:500]
+    ):
+        ledger_date = timezone.make_aware(
+            datetime.combine(debt.debt_date, time.min),
+            timezone.get_current_timezone(),
+        )
+        entries.append({
+            "date": ledger_date,
+            "type": "Personal Loan Given",
+            "description": f"{debt.debtor_name} · {debt.reason}",
+            "account": debt.source_account.name,
+            "amount": debt.amount,
+            "direction": "out",
+        })
+    for payment in ManualDebtPayment.objects.select_related("debt", "account", "received_by").order_by("-created_at")[:500]:
+        entries.append({
+            "date": payment.created_at,
+            "type": "Debt Repayment",
+            "description": f"{payment.debt.debtor_name} · {payment.debt.reason}",
+            "account": payment.account.name,
+            "amount": payment.amount,
+            "direction": "in",
+        })
     for expense in Expense.objects.select_related("category", "account").order_by("-created_at")[:500]:
         entries.append({"date": expense.created_at, "type": "Expense", "description": f"{expense.category.name} · {expense.description}", "account": expense.account.name, "amount": expense.amount, "direction": "out"})
     for purchase in StockPurchase.objects.select_related("product", "account").order_by("-created_at")[:500]:
