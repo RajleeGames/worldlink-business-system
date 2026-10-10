@@ -1,5 +1,8 @@
+
 from django.urls import path
-from . import views
+
+from . import views, stock_views
+
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
@@ -20,8 +23,9 @@ urlpatterns = [
     path("services/<int:pk>/edit/", views.service_edit, name="service_edit"),
     path("services/<int:pk>/delete/", views.service_delete, name="service_delete"),
 
-    path("products/", views.products, name="products"),
+    path("products/", stock_views.products, name="products"),
     path("products/new/", views.product_create, name="product_create"),
+    path("products/<int:pk>/", stock_views.product_detail, name="product_detail"),
     path("products/<int:pk>/edit/", views.product_edit, name="product_edit"),
     path("products/<int:pk>/delete/", views.product_delete, name="product_delete"),
 

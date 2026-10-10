@@ -70,6 +70,164 @@
 </section>
 
 <div class="dashboard-chart-grid">
+
+    
+{% if inventory_kpis %}
+<section class="wl-dashboard-inventory">
+
+    <div class="wl-stock-section-heading">
+        <div>
+            <span class="eyebrow">Live Inventory</span>
+            <h2>Stock financial overview</h2>
+            <p>
+                Current available products, not restricted by
+                the selected dashboard date filter.
+            </p>
+        </div>
+
+        <a href="{% url 'products' %}" class="btn btn-secondary">
+            View All Stock
+        </a>
+    </div>
+
+    <div class="kpi-grid wl-stock-kpis">
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Stock Worth</span>
+                <span class="wl-stock-kpi-symbol">01</span>
+            </div>
+
+            <strong>
+                TZS {{ inventory_kpis.cost_value|money }}
+            </strong>
+
+            <small>
+                Capital value at saved cost prices
+            </small>
+        </article>
+
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Potential Sales</span>
+                <span class="wl-stock-kpi-symbol">02</span>
+            </div>
+
+            <strong>
+                TZS {{ inventory_kpis.retail_value|money }}
+            </strong>
+
+            <small>
+                If all available stock sells
+            </small>
+        </article>
+
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Potential Gross Profit</span>
+                <span class="wl-stock-kpi-symbol">03</span>
+            </div>
+
+            <strong>
+                TZS {{ inventory_kpis.potential_profit|money }}
+            </strong>
+
+            <small>
+                {{ inventory_kpis.margin|floatformat:1 }}%
+                expected gross margin
+            </small>
+        </article>
+
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Stock Alerts</span>
+                <span class="wl-stock-kpi-symbol">04</span>
+            </div>
+
+            <strong>
+                {{ inventory_kpis.low_stock_count|add:inventory_kpis.out_of_stock_count }}
+            </strong>
+
+            <small>
+                {{ inventory_kpis.low_stock_count }} low ·
+                {{ inventory_kpis.out_of_stock_count }} out
+            </small>
+        </article>
+    </div>
+
+    <div class="grid-2 wl-stock-dashboard-lower">
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Stock availability</h2>
+                    <p>Current active product records.</p>
+                </div>
+            </div>
+
+            <div class="wl-stock-detail-list">
+                <div>
+                    <span>Active products</span>
+                    <strong>{{ inventory_kpis.product_count }}</strong>
+                </div>
+
+                <div>
+                    <span>In stock</span>
+                    <strong>{{ inventory_kpis.in_stock_count }}</strong>
+                </div>
+
+                <div>
+                    <span>Low stock</span>
+                    <strong>{{ inventory_kpis.low_stock_count }}</strong>
+                </div>
+
+                <div>
+                    <span>Out of stock</span>
+                    <strong>{{ inventory_kpis.out_of_stock_count }}</strong>
+                </div>
+
+                <div>
+                    <span>Products priced below cost</span>
+                    <strong>{{ inventory_kpis.loss_price_count }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Projected inventory profit</h2>
+                    <p>Illustrative sell-through scenarios.</p>
+                </div>
+            </div>
+
+            <div class="wl-stock-forecast-list">
+                {% for row in inventory_kpis.forecast %}
+                <div class="wl-stock-forecast-row">
+                    <span class="wl-stock-forecast-label">
+                        {{ row.percentage }}%
+                    </span>
+
+                    <div class="wl-stock-progress">
+                        <span style="width: {{ row.percentage }}%"></span>
+                    </div>
+
+                    <strong>
+                        TZS {{ row.profit|money }}
+                    </strong>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <p class="wl-stock-note">
+        Inventory figures use current saved unit prices.
+        Potential gross profit is not realized profit and
+        excludes future expenses, discounts and taxes.
+    </p>
+
+</section>
+{% endif %}
+
     <section class="panel chart-panel chart-panel-wide">
         <div class="panel-head chart-panel-head">
             <div>

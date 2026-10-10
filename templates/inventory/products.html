@@ -1,9 +1,361 @@
-{% extends 'base.html' %}{% load business_tags %}
+
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block title %}Products & Stock | WorldLink{% endblock %}
 {% block page_name %}Products & Stock{% endblock %}
+
 {% block content %}
-<div class="page-head"><div><span class="eyebrow">Inventory</span><h1>Products & stock</h1><p>Track equipment, current quantity, costs and selling prices.</p></div>{% if request.user.is_company_admin %}<div class="head-actions"><a class="btn btn-secondary" href="{% url 'purchase_create' %}">+ Stock Purchase</a><a class="btn btn-primary" href="{% url 'product_create' %}">+ New Product</a></div>{% endif %}</div>
-<section class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Product</th><th>Stock</th><th>Cost</th><th>Selling</th><th>Stock value</th>{% if request.user.is_company_admin %}<th class="actions-col">Actions</th>{% endif %}</tr></thead><tbody>
-{% for x in items %}<tr><td>{{ x.sku }}</td><td><strong>{{ x.name }}</strong><small>{{ x.category|default:'Uncategorized' }}</small></td><td><span class="stock-pill {% if x.quantity <= x.reorder_level %}low{% endif %}">{{ x.quantity }}</span></td><td>TZS {{ x.cost_price|money }}</td><td>TZS {{ x.selling_price|money }}</td><td class="num">TZS {{ x.stock_value|money }}</td>{% if request.user.is_company_admin %}<td><div class="row-actions"><a href="{% url 'product_edit' x.pk %}">Edit</a><a class="danger-link" href="{% url 'product_delete' x.pk %}">Delete</a></div></td>{% endif %}</tr>
-{% empty %}<tr><td colspan="7" class="empty">No products yet.</td></tr>{% endfor %}
-</tbody></table></div></section>
+
+<div class="page-head">
+    <div>
+        <span class="eyebrow">Inventory Management</span>
+        <h1>Products & stock</h1>
+        <p>Search, monitor and analyze your available inventory.</p>
+    </div>
+
+    {% if request.user.is_company_admin %}
+    <div class="head-actions">
+        <a href="{% url 'purchase_create' %}" class="btn btn-secondary">
+            + Stock Purchase
+        </a>
+        <a href="{% url 'product_create' %}" class="btn btn-primary">
+            + New Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% if request.user.is_company_admin %}
+<section class="kpi-grid wl-stock-kpis">
+    <article class="kpi">
+        <div class="kpi-top">
+            <span>Stock Worth</span>
+            <span class="wl-stock-kpi-symbol">01</span>
+        </div>
+        <strong>TZS {{ overall_stats.cost_value|money }}</strong>
+        <small>Current buying-cost valuation</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top">
+            <span>Expected Sales Value</span>
+            <span class="wl-stock-kpi-symbol">02</span>
+        </div>
+        <strong>TZS {{ overall_stats.retail_value|money }}</strong>
+        <small>If all available stock sells</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top">
+            <span>Potential Gross Profit</span>
+            <span class="wl-stock-kpi-symbol">03</span>
+        </div>
+        <strong>TZS {{ overall_stats.potential_profit|money }}</strong>
+        <small>Before expenses and discounts</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top">
+            <span>Stock Alerts</span>
+            <span class="wl-stock-kpi-symbol">04</span>
+        </div>
+        <strong>
+            {{ overall_stats.low_stock_count|add:overall_stats.out_of_stock_count }}
+        </strong>
+        <small>
+            {{ overall_stats.low_stock_count }} low /
+            {{ overall_stats.out_of_stock_count }} out
+        </small>
+    </article>
+</section>
+{% endif %}
+
+<section class="panel wl-stock-search-panel">
+    <div class="panel-head">
+        <div>
+            <h2>Search inventory</h2>
+            <p>Find products by name, category or SKU.</p>
+        </div>
+        <span class="wl-stock-count">
+            {{ paginator.count }} matching
+        </span>
+    </div>
+
+    <form method="get" class="wl-stock-filters">
+        <div class="wl-stock-fields">
+            <label class="wl-stock-field wl-stock-field-search">
+                <span>Search product</span>
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Name, SKU or category..."
+                    autocomplete="off"
+                >
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Category</span>
+                <select name="category" class="form-control">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>
+                        {{ cat }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Stock level</span>
+                <select name="stock" class="form-control">
+                    <option value="all" {% if stock == 'all' %}selected{% endif %}>All stock</option>
+                    <option value="good" {% if stock == 'good' %}selected{% endif %}>In stock</option>
+                    <option value="low" {% if stock == 'low' %}selected{% endif %}>Low stock</option>
+                    <option value="out" {% if stock == 'out' %}selected{% endif %}>Out of stock</option>
+                </select>
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Product status</span>
+                <select name="state" class="form-control">
+                    <option value="active" {% if state == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if state == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="all" {% if state == 'all' %}selected{% endif %}>All products</option>
+                </select>
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Pricing</span>
+                <select name="profit" class="form-control">
+                    <option value="all" {% if profit == 'all' %}selected{% endif %}>All prices</option>
+                    <option value="gain" {% if profit == 'gain' %}selected{% endif %}>Selling above cost</option>
+                    <option value="loss" {% if profit == 'loss' %}selected{% endif %}>Selling below cost</option>
+                    <option value="even" {% if profit == 'even' %}selected{% endif %}>Selling at cost</option>
+                </select>
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Sort by</span>
+                <select name="sort" class="form-control">
+                    {% for key, label in sort_options %}
+                    <option value="{{ key }}" {% if sort == key %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="wl-stock-field">
+                <span>Rows per page</span>
+                <select name="page_size" class="form-control">
+                    <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                    <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="wl-stock-filter-actions">
+            <button type="submit" class="btn btn-primary">
+                Search Products
+            </button>
+            <a href="{% url 'products' %}" class="btn btn-secondary">
+                Reset Filters
+            </a>
+        </div>
+    </form>
+</section>
+
+{% if request.user.is_company_admin %}
+<section class="wl-stock-summary-strip" aria-label="Filtered inventory totals">
+    <div>
+        <span>Matching active products</span>
+        <strong>{{ filtered_stats.product_count }}</strong>
+    </div>
+    <div>
+        <span>Available quantity</span>
+        <strong>{{ filtered_stats.quantity_total|money }}</strong>
+    </div>
+    <div>
+        <span>Filtered stock cost</span>
+        <strong>TZS {{ filtered_stats.cost_value|money }}</strong>
+    </div>
+    <div>
+        <span>Filtered selling value</span>
+        <strong>TZS {{ filtered_stats.retail_value|money }}</strong>
+    </div>
+    <div>
+        <span>Filtered gross profit</span>
+        <strong>TZS {{ filtered_stats.potential_profit|money }}</strong>
+    </div>
+</section>
+{% endif %}
+
+<section class="panel wl-stock-table-panel">
+    <div class="panel-head">
+        <div>
+            <h2>Product inventory</h2>
+            <p>Live quantities and valuations at current saved prices.</p>
+        </div>
+    </div>
+
+    <div class="table-wrap wl-stock-table-wrap">
+        <table class="wl-stock-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Availability</th>
+                    <th class="num">Quantity</th>
+                    <th class="num">Buying Price</th>
+                    <th class="num">Selling Price</th>
+                    <th class="num">Stock Worth</th>
+                    <th class="num">Sales Value</th>
+                    <th class="num">Potential Profit</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for x in items %}
+                <tr>
+                    <td>
+                        <a class="cell-link wl-stock-product-name" href="{% url 'product_detail' x.pk %}">
+                            {{ x.name }}
+                        </a>
+                        <small>{{ x.category|default:'Uncategorized' }}</small>
+                        {% if not x.is_active %}
+                        <small>Inactive product</small>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <span class="wl-stock-sku">{{ x.sku }}</span>
+                    </td>
+
+                    <td>
+                        <span class="wl-stock-status {{ x.stock_state }}">
+                            <i></i>{{ x.stock_label }}
+                        </span>
+                    </td>
+
+                    <td class="num">
+                        <strong>{{ x.quantity|money }}</strong>
+                    </td>
+
+                    <td class="num">
+                        TZS {{ x.cost_price|money }}
+                    </td>
+
+                    <td class="num">
+                        TZS {{ x.selling_price|money }}
+                    </td>
+
+                    <td class="num">
+                        TZS {{ x.stock_cost_value|money }}
+                    </td>
+
+                    <td class="num">
+                        TZS {{ x.stock_retail_value|money }}
+                    </td>
+
+                    <td class="num">
+                        <span class="{% if x.stock_profit_value < 0 %}wl-stock-loss{% else %}wl-stock-gain{% endif %}">
+                            TZS {{ x.stock_profit_value|money }}
+                        </span>
+                        <small>{{ x.margin_percent|floatformat:1 }}% margin</small>
+                    </td>
+
+                    <td>
+                        <div class="row-actions">
+                            <a href="{% url 'product_detail' x.pk %}">View</a>
+
+                            {% if request.user.is_company_admin %}
+                            <a href="{% url 'product_edit' x.pk %}">Edit</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="empty">
+                        No products match the selected filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="wl-stock-pagination">
+        <span>
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+            of {{ paginator.count }}
+        </span>
+
+        <div class="wl-stock-page-buttons">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-secondary" href="?{{ query_params }}&page=1">
+                First
+            </a>
+            <a class="btn btn-secondary" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+                Previous
+            </a>
+            {% endif %}
+
+            <span class="wl-stock-page-current">
+                {{ page_obj.number }} / {{ paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+            <a class="btn btn-secondary" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+                Next
+            </a>
+            <a class="btn btn-secondary" href="?{{ query_params }}&page={{ paginator.num_pages }}">
+                Last
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{% if request.user.is_company_admin %}
+<section class="panel wl-stock-forecast-panel">
+    <div class="panel-head">
+        <div>
+            <h2>Inventory sell-through scenarios</h2>
+            <p>Illustrative estimates if a percentage of available stock is sold at its current saved selling price.</p>
+        </div>
+    </div>
+
+    <div class="wl-stock-forecast-list">
+        {% for row in overall_stats.forecast %}
+        <div class="wl-stock-forecast-row">
+            <span class="wl-stock-forecast-label">
+                {{ row.percentage }}% sold
+            </span>
+
+            <div class="wl-stock-progress">
+                <span style="width: {{ row.percentage }}%"></span>
+            </div>
+
+            <strong>
+                TZS {{ row.profit|money }}
+            </strong>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="wl-stock-note">
+        Estimates exclude operating expenses, discounts, taxes and future
+        stock-price changes. They do not predict when products will sell.
+    </p>
+</section>
+{% endif %}
+
 {% endblock %}

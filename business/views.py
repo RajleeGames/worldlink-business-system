@@ -107,7 +107,7 @@ def dashboard(request):
     tx = Transaction.objects.exclude(status=Transaction.Status.VOID)
 
     # Admins can inspect any dashboard period. Cashiers stay focused on today.
-    is_admin = bool(getattr(request.user, "is_company_admin", False))
+    is_admin = request.user.is_company_admin()
     range_key = (request.GET.get("range") or "month").strip().lower() if is_admin else "today"
 
     presets = {
@@ -304,7 +304,17 @@ def dashboard(request):
         "period_transaction_count": len(period_transactions),
         "dashboard_filter_enabled": is_admin,
     }
+    
+    # Current inventory snapshot, independent of the selected
+    # revenue / expense reporting period.
+    # Only company admins receive stock financial metrics.
+    if is_admin:
+        from .stock_analytics import stock_summary
+
+        context["inventory_kpis"] = stock_summary()
+
     return render(request, "dashboard/index.html", context)
+
 
 
 def _catalog_context():

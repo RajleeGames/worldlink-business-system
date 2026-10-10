@@ -1,0 +1,223 @@
+
+{% extends 'base.html' %}
+{% load business_tags %}
+
+{% block title %}{{ product.name }} | WorldLink{% endblock %}
+{% block page_name %}Product Details{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <span class="eyebrow">Inventory / Product Details</span>
+        <h1>{{ product.name }}</h1>
+        <p>
+            SKU: {{ product.sku }} ·
+            {{ product.category|default:'Uncategorized' }}
+        </p>
+    </div>
+
+    <div class="head-actions">
+        <a href="{% url 'products' %}" class="btn btn-secondary">
+            Back to Products
+        </a>
+
+        {% if request.user.is_company_admin %}
+        <a href="{% url 'product_edit' product.pk %}" class="btn btn-primary">
+            Edit Product
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<section class="kpi-grid wl-stock-kpis">
+    <article class="kpi">
+        <div class="kpi-top"><span>Available Quantity</span></div>
+        <strong>{{ product.quantity|money }}</strong>
+        <small>{{ product.stock_label }}</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top"><span>Stock Worth</span></div>
+        <strong>TZS {{ product.stock_cost_value|money }}</strong>
+        <small>Quantity × buying cost</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top"><span>Potential Sales</span></div>
+        <strong>TZS {{ product.stock_retail_value|money }}</strong>
+        <small>Current selling price</small>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top"><span>Potential Gross Profit</span></div>
+        <strong>TZS {{ product.stock_profit_value|money }}</strong>
+        <small>{{ product.margin_percent|floatformat:1 }}% gross margin</small>
+    </article>
+</section>
+
+<div class="grid-2 wl-stock-detail-grid">
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Product information</h2>
+                <p>Saved pricing and inventory configuration.</p>
+            </div>
+        </div>
+
+        <div class="wl-stock-detail-list">
+            <div><span>SKU</span><strong>{{ product.sku }}</strong></div>
+            <div><span>Category</span><strong>{{ product.category|default:'—' }}</strong></div>
+            <div><span>Buying price</span><strong>TZS {{ product.cost_price|money }}</strong></div>
+            <div><span>Selling price</span><strong>TZS {{ product.selling_price|money }}</strong></div>
+            <div><span>Profit per unit</span><strong>TZS {{ product.unit_profit|money }}</strong></div>
+            <div><span>Gross margin</span><strong>{{ product.margin_percent|floatformat:1 }}%</strong></div>
+            <div><span>Reorder level</span><strong>{{ product.reorder_level|money }}</strong></div>
+            <div>
+                <span>Availability</span>
+                <span class="wl-stock-status {{ product.stock_state }}">
+                    <i></i>{{ product.stock_label }}
+                </span>
+            </div>
+            <div>
+                <span>Status</span>
+                <strong>{% if product.is_active %}Active{% else %}Inactive{% endif %}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Sell-through scenarios</h2>
+                <p>Estimates at existing saved prices.</p>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sold</th>
+                        <th class="num">Quantity</th>
+                        <th class="num">Revenue</th>
+                        <th class="num">Gross profit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in forecasts %}
+                    <tr>
+                        <td>{{ f.percentage }}%</td>
+                        <td class="num">{{ f.quantity|floatformat:2 }}</td>
+                        <td class="num">TZS {{ f.revenue|money }}</td>
+                        <td class="num">TZS {{ f.profit|money }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Recent stock purchases</h2>
+            <p>Last 12 recorded purchases for this product.</p>
+        </div>
+
+        {% if request.user.is_company_admin %}
+        <a class="text-link" href="{% url 'purchase_create' %}">
+            + Add Stock
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="num">Quantity</th>
+                    <th class="num">Unit Cost</th>
+                    <th class="num">Total Cost</th>
+                    <th>Supplier</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in purchases %}
+                <tr>
+                    <td>{{ p.created_at|date:'d M Y, H:i' }}</td>
+                    <td class="num">{{ p.quantity|money }}</td>
+                    <td class="num">TZS {{ p.unit_cost|money }}</td>
+                    <td class="num">TZS {{ p.total|money }}</td>
+                    <td>{{ p.supplier|default:'—' }}</td>
+                    <td>{{ p.reference|default:'—' }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty">
+                        No recorded purchases for this product.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Recent product sales</h2>
+            <p>
+                Latest 12 non-voided transaction lines.
+                Quantity: {{ recent_sold_quantity|money }} ·
+                Line revenue: TZS {{ recent_sales_value|money }}
+            </p>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Transaction</th>
+                    <th class="num">Quantity</th>
+                    <th class="num">Unit Price</th>
+                    <th class="num">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in sales %}
+                <tr>
+                    <td>{{ line.created_at|date:'d M Y, H:i' }}</td>
+                    <td>
+                        <a class="cell-link" href="{% url 'transaction_detail' line.transaction_id %}">
+                            {{ line.transaction.number }}
+                        </a>
+                    </td>
+                    <td class="num">{{ line.quantity|money }}</td>
+                    <td class="num">TZS {{ line.unit_price|money }}</td>
+                    <td class="num">TZS {{ line.line_total|money }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="empty">
+                        No recorded non-voided sales yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="wl-stock-note">
+        Recent sales totals cover the displayed lines only and exclude
+        transaction-level discount allocation. Current stock is taken
+        from the Product record, not reconstructed from this history.
+    </p>
+</section>
+
+{% endblock %}

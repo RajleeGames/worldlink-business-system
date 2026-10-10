@@ -2376,3 +2376,489 @@ body:not(.sidebar-collapsed) .app-main{margin-left:var(--sidebar)}
 
 .sms-client-error{border:1px solid #efcaca;background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:9px 10px;margin-bottom:12px;font-size:9px;line-height:1.45}
 .sms-client-error[hidden]{display:none!important}
+
+
+
+/* ==========================================================
+   WORLDLINK BUSINESS — INVENTORY ANALYTICS
+   Uses the existing global design system
+   ========================================================== */
+
+.wl-stock-kpis {
+    margin-bottom: 20px;
+}
+
+.wl-stock-kpis .kpi {
+    min-width: 0;
+}
+
+.wl-stock-kpis .kpi strong {
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+
+.wl-stock-kpi-symbol {
+    width: 29px;
+    height: 29px;
+    border: 1px solid var(--primary-line);
+    border-radius: 9px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 650;
+    flex: 0 0 auto;
+}
+
+/* Search & filters */
+
+.wl-stock-search-panel {
+    margin-bottom: 16px;
+}
+
+.wl-stock-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 11px;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wl-stock-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+}
+
+.wl-stock-fields {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.wl-stock-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.wl-stock-field > span {
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 550;
+}
+
+.wl-stock-field-search {
+    grid-column: span 2;
+}
+
+.wl-stock-field .form-control {
+    width: 100%;
+    min-width: 0;
+    min-height: 41px;
+    font-size: 12px;
+}
+
+.wl-stock-field select.form-control {
+    cursor: pointer;
+}
+
+.wl-stock-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    align-items: center;
+}
+
+.wl-stock-filter-actions .btn {
+    min-width: 115px;
+}
+
+/* Filtered inventory totals */
+
+.wl-stock-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.wl-stock-summary-strip > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 16px 14px;
+    border-right: 1px solid var(--border);
+}
+
+.wl-stock-summary-strip > div:last-child {
+    border-right: none;
+}
+
+.wl-stock-summary-strip span {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.wl-stock-summary-strip strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+/* Inventory table */
+
+.wl-stock-table-panel {
+    margin-bottom: 18px;
+}
+
+.wl-stock-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.wl-stock-table {
+    min-width: 1080px;
+    width: 100%;
+}
+
+.wl-stock-table th,
+.wl-stock-table td {
+    vertical-align: middle;
+}
+
+.wl-stock-table td {
+    font-size: 11.5px;
+}
+
+.wl-stock-table td.num {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.wl-stock-product-name {
+    font-weight: 650;
+    font-size: 12px;
+}
+
+.wl-stock-sku {
+    color: var(--muted);
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.wl-stock-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.wl-stock-status i {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.wl-stock-status.good {
+    color: var(--success);
+    background: #edf8f2;
+}
+
+.wl-stock-status.low {
+    color: var(--warning);
+    background: #fff7e9;
+}
+
+.wl-stock-status.out {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.wl-stock-gain {
+    color: var(--success);
+    font-weight: 650;
+}
+
+.wl-stock-loss {
+    color: var(--danger);
+    font-weight: 650;
+}
+
+/* Pagination */
+
+.wl-stock-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 17px 0 2px;
+    flex-wrap: wrap;
+}
+
+.wl-stock-pagination > span {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.wl-stock-page-buttons {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.wl-stock-page-buttons .btn {
+    min-height: 33px;
+    padding: 0 11px;
+    font-size: 10.5px;
+}
+
+.wl-stock-page-current {
+    color: var(--text);
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 11px;
+    font-size: 11px;
+    font-weight: 650;
+}
+
+/* Detail page */
+
+.wl-stock-detail-grid {
+    margin-bottom: 18px;
+}
+
+.wl-stock-detail-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.wl-stock-detail-list > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.wl-stock-detail-list > div:last-child {
+    border-bottom: none;
+}
+
+.wl-stock-detail-list > div > span:first-child {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.wl-stock-detail-list strong {
+    font-size: 11.5px;
+    font-weight: 650;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+/* Forecast */
+
+.wl-stock-forecast-panel {
+    margin-bottom: 18px;
+}
+
+.wl-stock-forecast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 17px;
+    padding: 8px 0;
+}
+
+.wl-stock-forecast-row {
+    display: grid;
+    grid-template-columns: 75px minmax(0, 1fr) 165px;
+    align-items: center;
+    gap: 15px;
+}
+
+.wl-stock-forecast-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 550;
+    white-space: nowrap;
+}
+
+.wl-stock-forecast-row strong {
+    text-align: right;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.wl-stock-progress {
+    height: 8px;
+    background: var(--primary-soft);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.wl-stock-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: inherit;
+    transition: width .4s var(--ease);
+}
+
+.wl-stock-note {
+    color: var(--muted);
+    font-size: 10.5px;
+    line-height: 1.65;
+    margin: 16px 0 0;
+}
+
+/* Dashboard inventory section */
+
+.wl-dashboard-inventory {
+    margin: 20px 0 25px;
+}
+
+.wl-stock-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 15px;
+}
+
+.wl-stock-section-heading h2 {
+    margin: 5px 0 6px;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: -.3px;
+}
+
+.wl-stock-section-heading p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11.5px;
+}
+
+.wl-stock-dashboard-lower {
+    margin-bottom: 0;
+}
+
+.wl-stock-dashboard-lower > .panel {
+    min-width: 0;
+}
+
+/* Tablet */
+
+@media (max-width: 1150px) {
+    .wl-stock-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wl-stock-summary-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .wl-stock-summary-strip > div {
+        border-bottom: 1px solid var(--border);
+    }
+}
+
+/* Mobile */
+
+@media (max-width: 680px) {
+    .wl-stock-fields {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .wl-stock-field-search {
+        grid-column: span 1;
+    }
+
+    .wl-stock-filter-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wl-stock-filter-actions .btn {
+        width: 100%;
+        min-width: 0;
+        padding: 0 8px;
+    }
+
+    .wl-stock-summary-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wl-stock-summary-strip > div {
+        padding: 14px 11px;
+    }
+
+    .wl-stock-summary-strip strong {
+        font-size: 12px;
+    }
+
+    .wl-stock-forecast-row {
+        grid-template-columns: 45px minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .wl-stock-forecast-row strong {
+        grid-column: 2;
+        text-align: left;
+        font-size: 10.5px;
+    }
+
+    .wl-stock-section-heading {
+        align-items: flex-start;
+    }
+
+    .wl-stock-section-heading h2 {
+        font-size: 16px;
+    }
+
+    .wl-stock-page-buttons {
+        width: 100%;
+    }
+
+    .wl-stock-detail-list > div {
+        gap: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wl-stock-progress > span {
+        transition: none;
+    }
+}
