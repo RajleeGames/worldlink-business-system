@@ -69,6 +69,77 @@
     </article>
 </section>
 
+{% comment %}WL_PRODUCT_SALES_DASHBOARD_20261015_V1: admin-only REAL sold-product KPIs.{% endcomment %}
+{% if product_sales_today %}
+<section class="wl-dashboard-product-sales" aria-label="Real product sales performance">
+    <div class="wl-stock-section-heading">
+        <div>
+            <span class="eyebrow">Actual sales / today</span>
+            <h2>Product sales &amp; gross profit</h2>
+            <p>Real products billed today — separate from quick-service material consumption and potential stock sales.</p>
+        </div>
+        <a href="{% url 'transaction_list' %}?range=today" class="btn btn-secondary">Today's Transactions</a>
+    </div>
+
+    <div class="kpi-grid wl-stock-kpis">
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Product Units Sold Today</span>
+                <span class="wl-stock-kpi-symbol">01</span>
+            </div>
+            <strong>{{ product_sales_today.units|floatformat:-2 }}</strong>
+            <small>{{ product_sales_today.product_count }} different products · {{ product_sales_today.transaction_count }} transactions</small>
+        </article>
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Product Sales Today</span>
+                <span class="wl-stock-kpi-symbol">02</span>
+            </div>
+            <strong>TZS {{ product_sales_today.revenue|money }}</strong>
+            <small>Customer selling value, after allocated discounts</small>
+        </article>
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Product Cost Today</span>
+                <span class="wl-stock-kpi-symbol">03</span>
+            </div>
+            <strong>TZS {{ product_sales_today.cost|money }}</strong>
+            <small>Recorded buying costs of products actually sold</small>
+        </article>
+        <article class="kpi">
+            <div class="kpi-top">
+                <span>Product Gross Profit Today</span>
+                <span class="wl-stock-kpi-symbol">04</span>
+            </div>
+            <strong>TZS {{ product_sales_today.profit|money }}</strong>
+            <small>Product sales minus product cost, before expenses</small>
+        </article>
+    </div>
+
+    {% if filter_start != product_sales_today.date or filter_end != product_sales_today.date %}
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Products sold in the selected period</h2>
+                <p>{{ period_label }} · the same product-only calculation for your dashboard filter.</p>
+            </div>
+        </div>
+        <div class="snapshot snapshot-three">
+            <div><span>Product sales</span><strong>TZS {{ product_sales_period.revenue|money }}</strong></div>
+            <div><span>Buying cost</span><strong>TZS {{ product_sales_period.cost|money }}</strong></div>
+            <div><span>Gross profit</span><strong>TZS {{ product_sales_period.profit|money }}</strong></div>
+        </div>
+    </section>
+    {% endif %}
+
+    <p class="wl-stock-note">
+        Today: TZS {{ materials_cost_today|money }} of office stock used internally for services / installations.
+        This is a separate service cost, not a sold-product line.
+        Sales here are invoiced amounts, not necessarily cash already received.
+    </p>
+</section>
+{% endif %}
+
 <div class="dashboard-chart-grid">
 
     

@@ -305,6 +305,80 @@ def dashboard(request):
         "dashboard_filter_enabled": is_admin,
     }
     
+    # WL_PRODUCT_SALES_DASHBOARD_20261015_V1 - product-only business analytics.
+    # Only company admins see cost prices and gross profit.
+    # A material taken from office stock is recorded at a ZERO selling price,
+    # so exclude it from actual sold-product revenue and units.
+    if is_admin:
+        def summarize_product_sales(transactions):
+            sold_value = Decimal("0.00")
+            sold_cost = Decimal("0.00")
+            sold_units = Decimal("0.00")
+            product_ids = set()
+            transaction_ids = set()
+
+            for sale in transactions:
+                sold_lines = [
+                    line for line in sale.lines.all()
+                    if line.product_id is not None
+                    and line.line_type == TransactionLine.LineType.PRODUCT
+                    and line.unit_price > 0
+                ]
+                if not sold_lines:
+                    continue
+
+                before_discount = sum(
+                    (line.line_total for line in sold_lines), Decimal("0.00")
+                )
+                # Mixed transactions can include labour/service prices.
+                # Allocate transaction-wide discounts proportionally to
+                # the actual product portion, avoiding inflated profit.
+                after_discount = before_discount
+                if sale.subtotal > 0 and sale.discount > 0:
+                    after_discount = (
+                        before_discount * sale.total / sale.subtotal
+                    ).quantize(Decimal("0.01"))
+                sold_value += after_discount
+                sold_cost += sum(
+                    (line.line_cost for line in sold_lines), Decimal("0.00")
+                )
+                sold_units += sum(
+                    (line.quantity for line in sold_lines), Decimal("0.00")
+                )
+                product_ids.update(line.product_id for line in sold_lines)
+                transaction_ids.add(sale.pk)
+
+            return {
+                "revenue": sold_value,
+                "cost": sold_cost,
+                "profit": sold_value - sold_cost,
+                "units": sold_units,
+                "product_count": len(product_ids),
+                "transaction_count": len(transaction_ids),
+                "date": today,
+            }
+
+        today_transactions = (
+            period_transactions
+            if filter_start == today and filter_end == today
+            else list(
+                tx.filter(created_at__date=today)
+                .prefetch_related("lines")
+                .order_by("-created_at")
+            )
+        )
+        context["product_sales_today"] = summarize_product_sales(today_transactions)
+        context["product_sales_period"] = summarize_product_sales(period_transactions)
+        context["materials_cost_today"] = sum(
+            (
+                line.line_cost
+                for sale in today_transactions
+                for line in sale.lines.all()
+                if line.product_id is not None and line.unit_price == 0
+            ),
+            Decimal("0.00"),
+        )
+
     # Current inventory snapshot, independent of the selected
     # revenue / expense reporting period.
     # Only company admins receive stock financial metrics.
