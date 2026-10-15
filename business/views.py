@@ -397,7 +397,7 @@ def _prepare_transaction_lines(raw_lines):
             raise ValueError("One transaction line is invalid.")
         line_type = str(line.get("type", "")).lower()
         item_id = line.get("item_id")
-        if line_type == TransactionLine.LineType.PRODUCT:
+        if line_type in (TransactionLine.LineType.PRODUCT, "material"):
             try:
                 product_ids.add(int(item_id))
             except (TypeError, ValueError):
@@ -408,7 +408,7 @@ def _prepare_transaction_lines(raw_lines):
             except (TypeError, ValueError):
                 raise ValueError("Choose a valid saved service.")
         elif line_type != TransactionLine.LineType.CUSTOM:
-            raise ValueError("Choose Product, Service or Custom for every line.")
+            raise ValueError("Choose Product, Material, Service or Custom for every line.")
 
     products = {
         item.pk: item
@@ -430,15 +430,20 @@ def _prepare_transaction_lines(raw_lines):
     for index, line in enumerate(raw_lines, start=1):
         line_type = str(line.get("type", "")).lower()
         quantity = _positive_decimal(line.get("quantity", "0"), f"Line {index} quantity")
-        unit_price = _positive_decimal(line.get("unit_price", "0"), f"Line {index} price")
+        # An internal material consumes stock and contributes its historical
+        # cost to profit, but it is never added to the customer invoice.
+        unit_price = (Decimal("0") if line_type == "material" else
+                      _positive_decimal(line.get("unit_price", "0"), f"Line {index} price"))
         description = str(line.get("description", "")).strip()[:255]
         product = None
         service = None
         unit_cost = Decimal("0")
 
-        if line_type == TransactionLine.LineType.PRODUCT:
+        if line_type in (TransactionLine.LineType.PRODUCT, "material"):
             product = products[int(line.get("item_id"))]
-            description = description or product.name
+            # Materials are identified by product + zero invoice price, not
+            # by a new database field. Prevent free-price sales spoofing.
+            description = product.name if line_type == "material" else (description or product.name)
             unit_cost = product.cost_price
             requested_stock[product.pk] = requested_stock.get(product.pk, Decimal("0")) + quantity
             if requested_stock[product.pk] > product.quantity:
@@ -456,7 +461,7 @@ def _prepare_transaction_lines(raw_lines):
         subtotal += line_total
         prepared.append(
             {
-                "line_type": line_type,
+                "line_type": TransactionLine.LineType.PRODUCT if line_type == "material" else line_type,
                 "product": product,
                 "service": service,
                 "description": description,
@@ -472,7 +477,10 @@ def _prepare_transaction_lines(raw_lines):
 @login_required
 @db_transaction.atomic
 def transaction_create(request):
-    form = TransactionCreateForm(request.POST or None)
+    form = TransactionCreateForm(
+        request.POST or None,
+        initial={"kind": Transaction.Kind.SERVICE} if request.method == "GET" and request.GET.get("kind") == "service" else None,
+    )
     line_errors = []
     raw_json = request.POST.get("lines_json", "") if request.method == "POST" else ""
     line_draft = _safe_line_draft(raw_json)
@@ -484,6 +492,13 @@ def transaction_create(request):
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             line_errors.append(str(exc))
         else:
+            # Internal stock usage belongs to customer work, not product-only sales.
+            if any(str(line.get("type", "")).lower() == "material" for line in raw_lines):
+                if form.cleaned_data["kind"] not in (
+                    Transaction.Kind.SERVICE, Transaction.Kind.MAINTENANCE, Transaction.Kind.PROJECT
+                ):
+                    form.add_error("kind", "Materials Used is available for Quick Service, Maintenance or Project transactions only.")
+
             discount = form.cleaned_data.get("discount") or Decimal("0")
             payment = form.cleaned_data.get("payment_amount") or Decimal("0")
 
@@ -659,7 +674,11 @@ def transaction_detail(request, pk):
     return render(
         request,
         "transactions/detail.html",
-        {"obj": obj, "money_accounts": MoneyAccount.objects.filter(is_active=True)},
+        {
+            "obj": obj,
+            "money_accounts": MoneyAccount.objects.filter(is_active=True),
+            "material_lines": [line for line in obj.lines.all() if line.product_id and line.unit_price == 0],
+        },
     )
 
 

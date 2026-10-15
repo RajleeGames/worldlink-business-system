@@ -220,4 +220,20 @@
     </p>
 </section>
 
+<section class="panel no-print">
+    <div class="panel-head"><div><h2>Recent materials used in customer jobs</h2>
+      <p>Tracked separately from product sales. Each row reduced office stock without charging separately on the receipt.</p>
+    </div></div>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Service / transaction</th><th class="num">Qty used</th>
+      {% if request.user.is_company_admin %}<th class="num">Recorded buying cost</th>{% endif %}
+    </tr></thead><tbody>
+    {% for line in materials %}
+      <tr><td>{{ line.created_at|date:'d M Y H:i' }}</td><td><a class="cell-link" href="{% url 'transaction_detail' line.transaction_id %}">{{ line.transaction.number }}</a></td>
+        <td class="num">{{ line.quantity|floatformat:-2 }}</td>
+        {% if request.user.is_company_admin %}<td class="num">TZS {{ line.line_cost|money }}</td>{% endif %}
+      </tr>
+    {% empty %}<tr><td colspan="4" class="empty">No materials used from this stock item yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+
 {% endblock %}

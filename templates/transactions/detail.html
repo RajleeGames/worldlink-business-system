@@ -24,7 +24,7 @@
     <strong>TZS {{ obj.total|money }}</strong>
   </div>
   <div class="tx-detail-metric">
-    <span>Product cost</span>
+    <span>Products &amp; materials cost</span>
     <strong>TZS {{ obj.cost_total|money }}</strong>
   </div>
   <div class="tx-detail-metric">
@@ -80,6 +80,7 @@
       </thead>
       <tbody>
         {% for line in obj.lines.all %}
+        {% if not line.product_id or line.unit_price > 0 %}
         <tr>
           <td>
             <strong>{{ line.description }}</strong>
@@ -91,6 +92,7 @@
           <td class="num">TZS {{ line.unit_price|money }}</td>
           <td class="num"><strong>TZS {{ line.line_total|money }}</strong></td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -135,6 +137,25 @@
     <span>Recorded by {{ obj.created_by.display_name }}</span>
   </div>
 </section>
+
+{# Staff-only internal stock log: never included in customer printout. #}
+{% if material_lines %}
+<section class="panel wl-material-ledger no-print">
+  <div class="panel-head"><div><h2>Materials consumed from office stock</h2>
+    <p>Stock already purchased; this is an internal cost, not an extra amount payable by the customer.</p>
+  </div></div>
+  <div class="table-wrap"><table><thead><tr><th>Material</th><th>SKU</th><th class="num">Quantity used</th>
+    {% if request.user.is_company_admin %}<th class="num">Unit buying cost</th><th class="num">Total cost</th>{% endif %}
+  </tr></thead><tbody>
+  {% for line in material_lines %}
+    <tr><td><strong>{{ line.description }}</strong></td><td>{{ line.product.sku }}</td>
+    <td class="num">{{ line.quantity|floatformat:-2 }}</td>
+    {% if request.user.is_company_admin %}<td class="num">TZS {{ line.unit_cost|money }}</td>
+    <td class="num">TZS {{ line.line_cost|money }}</td>{% endif %}</tr>
+  {% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
 
 <div class="detail-actions no-print tx-detail-actions">
   {% if obj.balance > 0 and obj.status != 'void' %}

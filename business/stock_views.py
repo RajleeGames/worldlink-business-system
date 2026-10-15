@@ -217,10 +217,21 @@ def product_detail(request, pk):
 
     sales = list(
         TransactionLine.objects
-        .filter(product=product)
+        .filter(product=product, unit_price__gt=0)
         .exclude(
             transaction__status=Transaction.Status.VOID
         )
+        .select_related("transaction")
+        .order_by("-created_at")[:12]
+    )
+
+    # Zero-priced product lines are internal materials for service jobs.
+    materials = list(
+        TransactionLine.objects
+        .filter(product=product, unit_price=0, transaction__kind__in=[
+            Transaction.Kind.SERVICE, Transaction.Kind.MAINTENANCE, Transaction.Kind.PROJECT
+        ])
+        .exclude(transaction__status=Transaction.Status.VOID)
         .select_related("transaction")
         .order_by("-created_at")[:12]
     )
@@ -256,6 +267,7 @@ def product_detail(request, pk):
         "product": product,
         "purchases": purchases,
         "sales": sales,
+        "materials": materials,
         "recent_sold_quantity": recent_sold_quantity,
         "recent_sales_value": recent_sales_value,
         "forecasts": forecasts,

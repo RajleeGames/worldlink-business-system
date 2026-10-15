@@ -82,6 +82,11 @@
                             <span>New Transaction</span>
                         </a>
 
+                        <a class="wl-nav-subitem" href="{% url 'transaction_create' %}?kind=service">
+                            <span class="wl-nav-child-dot"></span>
+                            <span>Quick Service + Materials</span>
+                        </a>
+
                         <a
                             class="wl-nav-subitem {% if 'project' in request.resolver_match.url_name %}active{% endif %}"
                             href="{% url 'projects' %}"

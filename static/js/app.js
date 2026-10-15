@@ -639,12 +639,12 @@
     const makeUid = () => window.crypto?.randomUUID?.() || `line-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const catalogById = (type, itemId) => {
-      const list = type === 'product' ? products : services;
+      const list = (type === 'product' || type === 'material') ? products : services;
       return list.find(item => String(item.id) === String(itemId)) || null;
     };
 
     let lines = Array.isArray(draft) ? draft.map(item => {
-      const type = ['product', 'service', 'custom'].includes(item.type) ? item.type : 'custom';
+      const type = ['product', 'service', 'custom', 'material'].includes(item.type) ? item.type : 'custom';
       const catalog = type === 'custom' ? null : catalogById(type, item.item_id);
       return {
         uid: item.uid || makeUid(),
@@ -653,7 +653,7 @@
         description: item.description || catalog?.name || '',
         quantity: Math.max(.01, toNumber(item.quantity) || 1),
         unit_price: Math.max(0, toNumber(item.unit_price)),
-        unit_cost: type === 'product' ? toNumber(catalog?.cost ?? item.unit_cost) : 0,
+        unit_cost: (type === 'product' || type === 'material') ? toNumber(catalog?.cost ?? item.unit_cost) : 0,
       };
     }) : [];
 
@@ -690,7 +690,7 @@
     const showSelectedItem = item => {
       selectedItem = item;
       if (searchEl) searchEl.value = item.name || '';
-      if (priceEl) priceEl.value = item.price || '';
+      if (priceEl) priceEl.value = lineType === 'material' ? '0' : (item.price || '');
       if (clearEl) clearEl.hidden = false;
       if (selectedEl) {
         const stock = item.type === 'product' ? ` · ${formatMoney(item.stock)} in stock` : '';
@@ -701,7 +701,7 @@
       showBuilderError('');
     };
 
-    const activeCatalog = () => lineType === 'product' ? products : services;
+    const activeCatalog = () => (lineType === 'product' || lineType === 'material') ? products : services;
 
     const filteredCatalog = query => {
       const normalized = String(query || '').trim().toLowerCase();
@@ -743,7 +743,7 @@
     };
 
     const setLineType = type => {
-      lineType = ['product', 'service', 'custom'].includes(type) ? type : 'product';
+      lineType = ['product', 'service', 'custom', 'material'].includes(type) ? type : 'product';
       $$('[data-line-type]', form).forEach(button => {
         const active = button.dataset.lineType === lineType;
         button.classList.toggle('is-active', active);
@@ -754,6 +754,17 @@
       if (catalogField) catalogField.hidden = lineType === 'custom';
       if (customField) customField.hidden = lineType !== 'custom';
       clearSelectedItem();
+      // Materials are internal cost lines, not product sale lines.
+      const isMaterial = lineType === 'material';
+      const materialInfo = $('[data-material-hint]', form);
+      if (materialInfo) materialInfo.hidden = !isMaterial;
+      const priceLabel = $('[data-line-price-label]', form);
+      if (priceLabel) priceLabel.textContent = isMaterial ? 'Customer unit charge (not charged)' : 'Unit price';
+      if (priceEl) {
+        priceEl.readOnly = isMaterial;
+        priceEl.min = isMaterial ? '0' : '0.01';
+        if (isMaterial) priceEl.value = '0';
+      }
       if (customDescription) customDescription.value = '';
       if (quantityEl) quantityEl.value = '1';
       if (resultsEl) resultsEl.hidden = true;
@@ -767,7 +778,7 @@
     };
 
     const currentProductRequested = productId => lines
-      .filter(line => line.type === 'product' && String(line.item_id) === String(productId))
+      .filter(line => (line.type === 'product' || line.type === 'material') && String(line.item_id) === String(productId))
       .reduce((sum, line) => sum + toNumber(line.quantity), 0);
 
     const addLine = () => {
@@ -778,12 +789,17 @@
         quantityEl?.focus();
         return;
       }
-      if (price <= 0) {
+      if (price <= 0 && lineType !== 'material') {
         showBuilderError('Enter a unit price greater than zero.');
         priceEl?.focus();
         return;
       }
 
+      if (lineType === 'material' && !['service', 'maintenance', 'project'].includes(kindEl?.value)) {
+        showBuilderError('Choose Quick Service, Maintenance or Project before adding Materials Used.');
+        kindEl?.focus();
+        return;
+      }
       let description = '';
       let itemId = null;
       let unitCost = 0;
@@ -797,16 +813,16 @@
         }
       } else {
         if (!selectedItem) {
-          showBuilderError(`Choose a ${lineType === 'product' ? 'product' : 'saved service'} first.`);
+          showBuilderError(`Choose a ${lineType === 'product' || lineType === 'material' ? 'product from stock' : 'saved service'} first.`);
           searchEl?.focus();
           renderCatalogResults();
           return;
         }
         description = selectedItem.name;
         itemId = selectedItem.id;
-        unitCost = lineType === 'product' ? toNumber(selectedItem.cost) : 0;
+        unitCost = (lineType === 'product' || lineType === 'material') ? toNumber(selectedItem.cost) : 0;
 
-        if (lineType === 'product') {
+        if (lineType === 'product' || lineType === 'material') {
           const available = toNumber(selectedItem.stock);
           const already = currentProductRequested(itemId);
           if (already + quantity > available) {
@@ -823,7 +839,7 @@
         item_id: itemId,
         description,
         quantity,
-        unit_price: price,
+        unit_price: lineType === 'material' ? 0 : price,
         unit_cost: unitCost,
       });
 
@@ -848,14 +864,16 @@
 
       linesEl.innerHTML = lines.map((line, index) => {
         const catalog = line.type === 'custom' ? null : catalogById(line.type, line.item_id);
-        const meta = line.type === 'product'
+        const meta = (line.type === 'product' || line.type === 'material')
           ? `${catalog?.sku || 'Product'}${catalog?.category ? ` · ${catalog.category}` : ''}`
           : line.type === 'service'
             ? `${catalog?.category || 'Saved service'}`
             : 'Custom work';
-        const typeLabel = line.type === 'product' ? 'Product' : line.type === 'service' ? 'Service' : 'Custom';
+        const typeLabel = line.type === 'material' ? 'Internal material' : line.type === 'product' ? 'Product' : line.type === 'service' ? 'Service' : 'Custom';
         const total = toNumber(line.quantity) * toNumber(line.unit_price);
-        return `<div class="tx-line-row" data-line-index="${index}">
+        const priceLock = line.type === 'material' ? 'readonly tabindex="-1"' : '';
+        const priceMin = line.type === 'material' ? '0' : '0.01';
+        return `<div class="tx-line-row" data-line-index="${index}" data-material-row="${line.type === 'material' ? '1' : '0'}">
           <div class="tx-line-main">
             <strong title="${safeText(line.description)}">${safeText(line.description)}</strong>
             <div class="tx-line-meta">
@@ -867,7 +885,7 @@
             <input class="form-control tx-line-input" type="number" min="0.01" step="0.01" inputmode="decimal" value="${safeText(line.quantity)}" data-line-row-qty="${index}" aria-label="Quantity for ${safeText(line.description)}">
           </div>
           <div class="tx-line-cell" data-label="Unit price">
-            <input class="form-control tx-line-input" type="number" min="0.01" step="0.01" inputmode="decimal" value="${safeText(line.unit_price)}" data-line-row-price="${index}" aria-label="Unit price for ${safeText(line.description)}">
+            <input class="form-control tx-line-input" type="number" min="${priceMin}" step="0.01" inputmode="decimal" value="${safeText(line.unit_price)}" ${priceLock} data-line-row-price="${index}" aria-label="Unit price for ${safeText(line.description)}">
           </div>
           <div class="tx-line-total" data-line-row-total="${index}">${safeText(money(total))}</div>
           <button type="button" class="tx-remove-line" data-remove-line="${index}" aria-label="Remove ${safeText(line.description)}">
@@ -911,6 +929,9 @@
       } else if (totals.discount >= totals.subtotal) {
         message = 'Discount must be less than the transaction subtotal.';
         state = 'is-error';
+      } else if (lines.some(line => line.type === 'material') && !['service', 'maintenance', 'project'].includes(kindEl?.value)) {
+        message = 'Materials Used requires Quick Service, Maintenance or Project transaction type.';
+        state = 'is-error';
       } else if (totals.payment > totals.total) {
         message = 'Amount received cannot be greater than the transaction total.';
         state = 'is-error';
@@ -940,6 +961,7 @@
       const invalid = !lines.length
         || totals.discount >= totals.subtotal
         || totals.payment > totals.total
+        || (lines.some(line => line.type === 'material') && !['service', 'maintenance', 'project'].includes(kindEl?.value))
         || (kindEl?.value === 'project' && !projectEl?.value)
         || (totals.payment > 0 && !accountEl?.value)
         || (totals.balance > 0 && !customerEl?.value);
@@ -1022,10 +1044,10 @@
 
       if (qtyInput) {
         const nextQty = toNumber(qtyInput.value);
-        if (line.type === 'product') {
+        if (line.type === 'product' || line.type === 'material') {
           const catalog = catalogById('product', line.item_id);
           const otherQty = lines.reduce((sum, candidate, candidateIndex) => {
-            if (candidateIndex === index || candidate.type !== 'product' || String(candidate.item_id) !== String(line.item_id)) return sum;
+            if (candidateIndex === index || !['product', 'material'].includes(candidate.type) || String(candidate.item_id) !== String(line.item_id)) return sum;
             return sum + toNumber(candidate.quantity);
           }, 0);
           const max = Math.max(0, toNumber(catalog?.stock) - otherQty);
@@ -1037,8 +1059,8 @@
       }
       if (priceInput) {
         const nextPrice = toNumber(priceInput.value);
-        priceInput.classList.toggle('is-error', nextPrice <= 0);
-        line.unit_price = nextPrice;
+        priceInput.classList.toggle('is-error', line.type !== 'material' && nextPrice <= 0);
+        line.unit_price = line.type === 'material' ? 0 : nextPrice;
       }
 
       const totalNode = $(`[data-line-row-total="${index}"]`, linesEl);
@@ -1103,8 +1125,8 @@
       // performs the authoritative locked stock check again inside a DB transaction.
       let lineInvalid = false;
       lines.forEach((line, index) => {
-        let thisLineInvalid = toNumber(line.quantity) <= 0 || toNumber(line.unit_price) <= 0;
-        if (line.type === 'product') {
+        let thisLineInvalid = toNumber(line.quantity) <= 0 || (line.type !== 'material' && toNumber(line.unit_price) <= 0);
+        if (line.type === 'product' || line.type === 'material') {
           const catalog = catalogById('product', line.item_id);
           const totalRequested = currentProductRequested(line.item_id);
           if (totalRequested > toNumber(catalog?.stock)) thisLineInvalid = true;
@@ -1121,7 +1143,7 @@
       }
     }, {capture:true});
 
-    setLineType('product');
+    setLineType(kindEl?.value === 'service' ? 'service' : 'product');
     renderLines();
     updateSummary();
   };
