@@ -2877,3 +2877,22 @@ body:not(.sidebar-collapsed) .app-main{margin-left:var(--sidebar)}
 .wl-material-ledger tr:hover{background:#f8fafb}
 @media print{.wl-material-ledger,.wl-material-hint{display:none!important}}
 @media(max-width:620px){.wl-material-hint{font-size:10px;padding:10px}.wl-material-ledger{overflow:hidden}}
+
+
+/* WORLDLINK_OFFICE_INTERNAL_SALES_V2_20261015: same global theme, no extra css files */
+.wl-office-selling-preview{padding:12px 13px;border:1px solid var(--primary-line);background:var(--primary-soft);border-radius:9px;margin:12px 0;font-size:10px;display:flex;flex-direction:column;gap:5px}
+.wl-office-selling-preview[hidden]{display:none!important}
+.wl-office-selling-preview>span{color:var(--muted);font-weight:500}
+.wl-office-selling-preview>strong{color:var(--primary);font-size:15px;font-weight:620}
+.wl-office-selling-preview>small{font-size:9px;color:var(--muted);line-height:1.6}
+.wl-office-sale-section{margin:18px 0 22px}
+.wl-office-sale-section .wl-stock-section-heading{margin-bottom:14px}
+.wl-office-sale-section>.wl-stock-note{margin-top:12px}
+.wl-office-sale-section .kpi-grid{margin-top:0}
+.wl-office-sale-section .wl-internal-note{font-size:10px;line-height:1.65;margin-top:12px}
+.wl-office-reconciliation{border:1px solid var(--border);border-radius:10px;padding:10px 15px;margin-top:16px;background:#fafcfd}
+.wl-office-reconciliation>div{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid var(--border);padding:9px 0;font-size:10px}
+.wl-office-reconciliation>div:last-child{border-bottom:0}
+.wl-office-reconciliation strong{text-align:right;color:var(--primary);font-weight:620}
+@media(max-width:620px){.wl-office-reconciliation>div{align-items:flex-start;flex-direction:column;gap:4px}.wl-office-reconciliation strong{text-align:left}}
+@media(max-width:650px){.wl-office-sale-section .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -77,7 +77,7 @@
           <div>
             <span class="tx-section-index">02</span>
             <div>
-              <h2>Products, services &amp; materials</h2>
+              <h2>Products, services &amp; internal office sales</h2>
               <p>Add as many items as this transaction needs.</p>
             </div>
           </div>
@@ -96,7 +96,7 @@
             </button>
             <button type="button" class="tx-line-type" data-line-type="material" title="Deduct office stock, without charging the customer again">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4.5 7.8 12 12l7.5-4.2M12 12v9M8 15l2.5 2.5L16 12"/></svg>
-              Materials Used
+              Office Sale / Materials Used
             </button>
             <button type="button" class="tx-line-type" data-line-type="custom">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -106,7 +106,9 @@
 
           <p class="wl-material-hint" data-material-hint hidden>
             Internal stock usage: select video baluns, power pins, cables, cameras or other products already in inventory.
-            Quantity will be deducted automatically. Material buying cost reduces job profit, but <strong>does not increase the customer bill or deduct cash again.</strong>
+            Quantity is deducted from stock and the <strong>saved product selling price</strong> is recorded as an INTERNAL OFFICE SALE.
+            This value is visible in your product-sales reports but <strong>does not increase the customer bill or money-account balance</strong>.
+            The actual buying cost is what reduces job profit.
             For stock you just purchased, <a href="{% url 'purchase_create' %}">record a stock purchase</a> first.
           </p>
           <div class="tx-composer-grid">
@@ -150,7 +152,7 @@
           </div>
 
           <div class="tx-composer-actions">
-            <span class="tx-composer-hint">Charge customers for products or service work; choose Materials Used for internal stock consumption.</span>
+            <span class="tx-composer-hint">Office material issues count at saved selling price, without adding to the customer invoice.</span>
             <button type="button" class="btn btn-primary tx-add-line" data-add-transaction-line>
               <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               Add item
@@ -242,6 +244,11 @@
         </div>
 
         {% if request.user.is_company_admin %}
+        <div class="wl-office-selling-preview" data-office-selling-preview hidden>
+          <span>Office materials · selling value</span>
+          <strong data-summary-internal-selling>TZS 0</strong>
+          <small>Internal product sale. Not added to customer total or cash received.</small>
+        </div>
         <div class="tx-profit-preview" data-profit-preview>
           <div class="tx-profit-title">
             <span>Admin estimate</span>

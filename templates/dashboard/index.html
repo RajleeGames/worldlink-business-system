@@ -69,74 +69,44 @@
     </article>
 </section>
 
-{% comment %}WL_PRODUCT_SALES_DASHBOARD_20261015_V1: admin-only REAL sold-product KPIs.{% endcomment %}
+{% comment %}WORLDLINK_OFFICE_INTERNAL_SALES_V2_20261015{% endcomment %}
 {% if product_sales_today %}
-<section class="wl-dashboard-product-sales" aria-label="Real product sales performance">
-    <div class="wl-stock-section-heading">
-        <div>
-            <span class="eyebrow">Actual sales / today</span>
-            <h2>Product sales &amp; gross profit</h2>
-            <p>Real products billed today — separate from quick-service material consumption and potential stock sales.</p>
-        </div>
-        <a href="{% url 'transaction_list' %}?range=today" class="btn btn-secondary">Today's Transactions</a>
+<section class="wl-office-sale-section" aria-label="Office and customer product sales summary">
+  <div class="wl-stock-section-heading">
+    <div><span class="eyebrow">Products / today</span>
+      <h2>Products sold · customers &amp; office</h2>
+      <p>Customer product sales plus materials issued internally at saved selling prices.</p>
     </div>
-
-    <div class="kpi-grid wl-stock-kpis">
-        <article class="kpi">
-            <div class="kpi-top">
-                <span>Product Units Sold Today</span>
-                <span class="wl-stock-kpi-symbol">01</span>
-            </div>
-            <strong>{{ product_sales_today.units|floatformat:-2 }}</strong>
-            <small>{{ product_sales_today.product_count }} different products · {{ product_sales_today.transaction_count }} transactions</small>
-        </article>
-        <article class="kpi">
-            <div class="kpi-top">
-                <span>Product Sales Today</span>
-                <span class="wl-stock-kpi-symbol">02</span>
-            </div>
-            <strong>TZS {{ product_sales_today.revenue|money }}</strong>
-            <small>Customer selling value, after allocated discounts</small>
-        </article>
-        <article class="kpi">
-            <div class="kpi-top">
-                <span>Product Cost Today</span>
-                <span class="wl-stock-kpi-symbol">03</span>
-            </div>
-            <strong>TZS {{ product_sales_today.cost|money }}</strong>
-            <small>Recorded buying costs of products actually sold</small>
-        </article>
-        <article class="kpi">
-            <div class="kpi-top">
-                <span>Product Gross Profit Today</span>
-                <span class="wl-stock-kpi-symbol">04</span>
-            </div>
-            <strong>TZS {{ product_sales_today.profit|money }}</strong>
-            <small>Product sales minus product cost, before expenses</small>
-        </article>
-    </div>
-
-    {% if filter_start != product_sales_today.date or filter_end != product_sales_today.date %}
-    <section class="panel">
-        <div class="panel-head">
-            <div>
-                <h2>Products sold in the selected period</h2>
-                <p>{{ period_label }} · the same product-only calculation for your dashboard filter.</p>
-            </div>
-        </div>
-        <div class="snapshot snapshot-three">
-            <div><span>Product sales</span><strong>TZS {{ product_sales_period.revenue|money }}</strong></div>
-            <div><span>Buying cost</span><strong>TZS {{ product_sales_period.cost|money }}</strong></div>
-            <div><span>Gross profit</span><strong>TZS {{ product_sales_period.profit|money }}</strong></div>
-        </div>
-    </section>
-    {% endif %}
-
-    <p class="wl-stock-note">
-        Today: TZS {{ materials_cost_today|money }} of office stock used internally for services / installations.
-        This is a separate service cost, not a sold-product line.
-        Sales here are invoiced amounts, not necessarily cash already received.
-    </p>
+    <a class="btn btn-secondary" href="{% url 'transaction_list' %}?range=today">Today's transactions</a>
+  </div>
+  <div class="kpi-grid wl-stock-kpis">
+    <article class="kpi"><div class="kpi-top"><span>Product units sold / used</span><span class="wl-stock-kpi-symbol">01</span></div>
+      <strong>{{ product_sales_today.units|floatformat:-2 }}</strong>
+      <small>{{ product_sales_today.external_units|floatformat:-2 }} customer · {{ product_sales_today.internal_units|floatformat:-2 }} office</small></article>
+    <article class="kpi"><div class="kpi-top"><span>External product sales</span><span class="wl-stock-kpi-symbol">02</span></div>
+      <strong>TZS {{ product_sales_today.external_revenue|money }}</strong><small>Products billed to customers, less allocated discounts</small></article>
+    <article class="kpi"><div class="kpi-top"><span>Internal office sales</span><span class="wl-stock-kpi-symbol">03</span></div>
+      <strong>TZS {{ product_sales_today.internal_value|money }}</strong><small>Office materials valued at product selling prices</small></article>
+    <article class="kpi"><div class="kpi-top"><span>Total product selling value</span><span class="wl-stock-kpi-symbol">04</span></div>
+      <strong>TZS {{ product_sales_today.combined_selling_value|money }}</strong><small>Customer sales + internal office transfers (not total business revenue)</small></article>
+    <article class="kpi"><div class="kpi-top"><span>Product buying cost</span><span class="wl-stock-kpi-symbol">05</span></div>
+      <strong>TZS {{ product_sales_today.combined_cost|money }}</strong><small>Combined stock cost of both types</small></article>
+    <article class="kpi"><div class="kpi-top"><span>Product margin equivalent</span><span class="wl-stock-kpi-symbol">06</span></div>
+      <strong>TZS {{ product_sales_today.combined_margin|money }}</strong><small>Customer gross profit + internal allocated markup</small></article>
+    <article class="kpi"><div class="kpi-top"><span>External product gross profit</span><span class="wl-stock-kpi-symbol">07</span></div>
+      <strong>TZS {{ product_sales_today.external_profit|money }}</strong><small>Actual customer product sales − product cost</small></article>
+    <article class="kpi"><div class="kpi-top"><span>Office material markup</span><span class="wl-stock-kpi-symbol">08</span></div>
+      <strong>TZS {{ product_sales_today.internal_markup|money }}</strong><small>Internal valuation only; not new cash profit</small></article>
+  </div>
+  {% if filter_start != product_sales_today.date or filter_end != product_sales_today.date %}
+    <section class="panel"><div class="panel-head"><div><h2>Product summary · selected period</h2><p>{{ period_label }} (dashboard date filter)</p></div></div>
+    <div class="snapshot snapshot-three">
+      <div><span>External sales</span><strong>TZS {{ product_sales_period.external_revenue|money }}</strong></div>
+      <div><span>Internal office selling value</span><strong>TZS {{ product_sales_period.internal_value|money }}</strong></div>
+      <div><span>Combined selling value</span><strong>TZS {{ product_sales_period.combined_selling_value|money }}</strong></div>
+    </div></section>
+  {% endif %}
+  <p class="wl-stock-note wl-internal-note">Internal office issues are treated like sales to your own office for stock movement and product selling-value tracking. They do <strong>not</strong> create another cash payment, increase the customer's invoice, or create additional recognized company revenue. Actual service gross profit still uses material buying costs. {% if product_sales_today.legacy_units > 0 %}Older materials were stored without a selling-price snapshot, so their internal value uses today's saved product selling price.{% endif %}</p>
 </section>
 {% endif %}
 

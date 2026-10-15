@@ -245,6 +245,23 @@ class Transaction(TimeStampedModel):
         if self.total <= 0:
             return Decimal("0")
         return (self.gross_profit / self.total) * Decimal("100")
+    # INTERNAL allocation only: the office/job consumes the goods at their
+    # selling value, while the stock department retains the transfer markup.
+    # This is not extra consolidated business profit or another customer bill.
+    @property
+    def internal_office_sale_value(self):
+        return sum((line.internal_selling_total for line in self.lines.all()
+                    if line.is_internal_material), Decimal("0"))
+
+    @property
+    def internal_office_markup(self):
+        return sum((line.internal_markup for line in self.lines.all()
+                    if line.is_internal_material), Decimal("0"))
+
+    @property
+    def service_profit_after_internal_charge(self):
+        return self.gross_profit - self.internal_office_markup
+
     def refresh_status(self):
         if self.status == self.Status.VOID: return
         paid = self.amount_paid
@@ -264,8 +281,39 @@ class TransactionLine(TimeStampedModel):
     quantity = models.DecimalField(max_digits=14, decimal_places=2, default=1)
     unit_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     unit_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    # WORLDLINK_OFFICE_INTERNAL_SALES_V2_20261015
+    # Reuse existing CUSTOM + Product FK to mark INTERNAL stock issue.
+    # Existing zero-priced PRODUCT rows are legacy materials from V1.
+    # No database schema/choices changes and no migration.
     @property
-    def line_total(self): return self.quantity * self.unit_price
+    def is_internal_material(self):
+        return bool(self.product_id and (
+            self.line_type == self.LineType.CUSTOM or
+            (self.line_type == self.LineType.PRODUCT and self.unit_price == 0)
+        ))
+
+    @property
+    def internal_unit_selling_price(self):
+        if not self.is_internal_material:
+            return Decimal("0")
+        if self.unit_price > 0:
+            return self.unit_price  # New materials: saved sale-price snapshot.
+        # Old V1 materials have unit_price=0; only current price can be shown.
+        return self.product.selling_price if self.product_id else Decimal("0")
+
+    @property
+    def internal_selling_total(self):
+        return self.quantity * self.internal_unit_selling_price
+
+    @property
+    def internal_markup(self):
+        return self.internal_selling_total - self.line_cost
+
+    @property
+    def line_total(self):
+        # Never bill customer for a separate internal issue.
+        return Decimal("0") if self.is_internal_material else self.quantity * self.unit_price
+
     @property
     def line_cost(self): return self.quantity * self.unit_cost
 

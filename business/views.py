@@ -141,7 +141,7 @@ def dashboard(request):
     period_tx_qs = (
         tx.filter(created_at__date__range=(filter_start, filter_end))
         .select_related("customer", "created_by")
-        .prefetch_related("lines")
+        .prefetch_related("lines__product")
         .order_by("-created_at")
     )
     period_transactions = list(period_tx_qs)
@@ -305,79 +305,78 @@ def dashboard(request):
         "dashboard_filter_enabled": is_admin,
     }
     
-    # WL_PRODUCT_SALES_DASHBOARD_20261015_V1 - product-only business analytics.
-    # Only company admins see cost prices and gross profit.
-    # A material taken from office stock is recorded at a ZERO selling price,
-    # so exclude it from actual sold-product revenue and units.
+    # WORLDLINK_OFFICE_INTERNAL_SALES_V2_20261015
+    # Two product channels: actual external customer sales and internally
+    # issued office materials valued at the saved product SELLING price.
+    # Internal valuation never adds to actual Transaction.total, money accounts,
+    # customer debt, job gross profit or net business profit.
     if is_admin:
         def summarize_product_sales(transactions):
-            sold_value = Decimal("0.00")
-            sold_cost = Decimal("0.00")
-            sold_units = Decimal("0.00")
+            zero = Decimal("0.00")
+            external_value = external_cost = external_units = zero
+            internal_value = internal_cost = internal_units = zero
             product_ids = set()
             transaction_ids = set()
+            legacy_units = zero
 
             for sale in transactions:
-                sold_lines = [
-                    line for line in sale.lines.all()
-                    if line.product_id is not None
-                    and line.line_type == TransactionLine.LineType.PRODUCT
-                    and line.unit_price > 0
-                ]
-                if not sold_lines:
+                external_lines = []
+                internal_lines = []
+                for line in sale.lines.all():
+                    if not line.product_id:
+                        continue
+                    if line.is_internal_material:
+                        internal_lines.append(line)
+                    elif line.line_type == TransactionLine.LineType.PRODUCT and line.unit_price > 0:
+                        external_lines.append(line)
+
+                if not external_lines and not internal_lines:
                     continue
-
-                before_discount = sum(
-                    (line.line_total for line in sold_lines), Decimal("0.00")
-                )
-                # Mixed transactions can include labour/service prices.
-                # Allocate transaction-wide discounts proportionally to
-                # the actual product portion, avoiding inflated profit.
-                after_discount = before_discount
-                if sale.subtotal > 0 and sale.discount > 0:
-                    after_discount = (
-                        before_discount * sale.total / sale.subtotal
-                    ).quantize(Decimal("0.01"))
-                sold_value += after_discount
-                sold_cost += sum(
-                    (line.line_cost for line in sold_lines), Decimal("0.00")
-                )
-                sold_units += sum(
-                    (line.quantity for line in sold_lines), Decimal("0.00")
-                )
-                product_ids.update(line.product_id for line in sold_lines)
                 transaction_ids.add(sale.pk)
+                product_ids.update(ln.product_id for ln in external_lines + internal_lines)
 
+                raw_external = sum((ln.line_total for ln in external_lines), zero)
+                # Allocate any transaction-level discount by invoiced value.
+                if sale.subtotal > 0 and sale.discount > 0:
+                    raw_external = (raw_external * sale.total / sale.subtotal).quantize(Decimal("0.01"))
+                external_value += raw_external
+                external_units += sum((ln.quantity for ln in external_lines), zero)
+                external_cost += sum((ln.line_cost for ln in external_lines), zero)
+
+                internal_value += sum((ln.internal_selling_total for ln in internal_lines), zero)
+                internal_units += sum((ln.quantity for ln in internal_lines), zero)
+                internal_cost += sum((ln.line_cost for ln in internal_lines), zero)
+                legacy_units += sum((ln.quantity for ln in internal_lines if ln.unit_price == 0), zero)
+
+            # Internal markup is an allocation/transfer margin, NOT additional
+            # earnings. Only external profit is realized product sale margin.
+            external_profit = external_value - external_cost
+            internal_markup = internal_value - internal_cost
             return {
-                "revenue": sold_value,
-                "cost": sold_cost,
-                "profit": sold_value - sold_cost,
-                "units": sold_units,
+                "external_revenue": external_value,
+                "external_cost": external_cost,
+                "external_profit": external_profit,
+                "external_units": external_units,
+                "internal_value": internal_value,
+                "internal_cost": internal_cost,
+                "internal_markup": internal_markup,
+                "internal_units": internal_units,
+                "combined_selling_value": external_value + internal_value,
+                "combined_cost": external_cost + internal_cost,
+                "combined_margin": external_profit + internal_markup,
+                "units": external_units + internal_units,
                 "product_count": len(product_ids),
                 "transaction_count": len(transaction_ids),
+                "legacy_units": legacy_units,
                 "date": today,
             }
 
         today_transactions = (
-            period_transactions
-            if filter_start == today and filter_end == today
-            else list(
-                tx.filter(created_at__date=today)
-                .prefetch_related("lines")
-                .order_by("-created_at")
-            )
+            period_transactions if filter_start == today and filter_end == today
+            else list(tx.filter(created_at__date=today).prefetch_related("lines__product"))
         )
         context["product_sales_today"] = summarize_product_sales(today_transactions)
         context["product_sales_period"] = summarize_product_sales(period_transactions)
-        context["materials_cost_today"] = sum(
-            (
-                line.line_cost
-                for sale in today_transactions
-                for line in sale.lines.all()
-                if line.product_id is not None and line.unit_price == 0
-            ),
-            Decimal("0.00"),
-        )
 
     # Current inventory snapshot, independent of the selected
     # revenue / expense reporting period.
@@ -504,8 +503,8 @@ def _prepare_transaction_lines(raw_lines):
     for index, line in enumerate(raw_lines, start=1):
         line_type = str(line.get("type", "")).lower()
         quantity = _positive_decimal(line.get("quantity", "0"), f"Line {index} quantity")
-        # An internal material consumes stock and contributes its historical
-        # cost to profit, but it is never added to the customer invoice.
+        # For internal material use, the selling price is saved on the line,
+        # but it is NOT an additional customer charge or cash receipt.
         unit_price = (Decimal("0") if line_type == "material" else
                       _positive_decimal(line.get("unit_price", "0"), f"Line {index} price"))
         description = str(line.get("description", "")).strip()[:255]
@@ -519,6 +518,11 @@ def _prepare_transaction_lines(raw_lines):
             # by a new database field. Prevent free-price sales spoofing.
             description = product.name if line_type == "material" else (description or product.name)
             unit_cost = product.cost_price
+            if line_type == "material":
+                if product.selling_price <= 0:
+                    raise ValueError(f"Set a positive selling price for {product.name} in Products & Stock first.")
+                # Authoritative saved selling price, never client-supplied.
+                unit_price = product.selling_price
             requested_stock[product.pk] = requested_stock.get(product.pk, Decimal("0")) + quantity
             if requested_stock[product.pk] > product.quantity:
                 raise ValueError(
@@ -532,10 +536,11 @@ def _prepare_transaction_lines(raw_lines):
                 raise ValueError(f"Line {index} needs a custom description.")
 
         line_total = quantity * unit_price
-        subtotal += line_total
+        if line_type != "material":
+            subtotal += line_total  # Internal office sale excluded from customer invoice.
         prepared.append(
             {
-                "line_type": TransactionLine.LineType.PRODUCT if line_type == "material" else line_type,
+                "line_type": TransactionLine.LineType.CUSTOM if line_type == "material" else line_type,
                 "product": product,
                 "service": service,
                 "description": description,
@@ -751,7 +756,7 @@ def transaction_detail(request, pk):
         {
             "obj": obj,
             "money_accounts": MoneyAccount.objects.filter(is_active=True),
-            "material_lines": [line for line in obj.lines.all() if line.product_id and line.unit_price == 0],
+            "material_lines": [line for line in obj.lines.all() if line.is_internal_material],
         },
     )
 

@@ -616,6 +616,8 @@
     const summaryBalance = $('[data-summary-balance]', form);
     const summaryCost = $('[data-summary-cost]', form);
     const summaryProfit = $('[data-summary-profit]', form);
+    const internalSellingPreview = $('[data-office-selling-preview]', form);
+    const internalSellingAmount = $('[data-summary-internal-selling]', form);
     const summaryMessage = $('[data-summary-message]', form);
     const mobileTotal = $('[data-mobile-total]', form);
     const completeButtons = $$('[data-complete-transaction], .tx-mobile-submit button[type="submit"]', form);
@@ -690,7 +692,7 @@
     const showSelectedItem = item => {
       selectedItem = item;
       if (searchEl) searchEl.value = item.name || '';
-      if (priceEl) priceEl.value = lineType === 'material' ? '0' : (item.price || '');
+      if (priceEl) priceEl.value = item.price || '';
       if (clearEl) clearEl.hidden = false;
       if (selectedEl) {
         const stock = item.type === 'product' ? ` · ${formatMoney(item.stock)} in stock` : '';
@@ -759,11 +761,11 @@
       const materialInfo = $('[data-material-hint]', form);
       if (materialInfo) materialInfo.hidden = !isMaterial;
       const priceLabel = $('[data-line-price-label]', form);
-      if (priceLabel) priceLabel.textContent = isMaterial ? 'Customer unit charge (not charged)' : 'Unit price';
+      if (priceLabel) priceLabel.textContent = isMaterial ? 'Office sale price (not customer charged)' : 'Unit price';
       if (priceEl) {
         priceEl.readOnly = isMaterial;
-        priceEl.min = isMaterial ? '0' : '0.01';
-        if (isMaterial) priceEl.value = '0';
+        priceEl.min = '0.01';
+        if (isMaterial) priceEl.value = '';
       }
       if (customDescription) customDescription.value = '';
       if (quantityEl) quantityEl.value = '1';
@@ -777,6 +779,7 @@
       }
     };
 
+    // Both external sales and internal office issues consume the same stock.
     const currentProductRequested = productId => lines
       .filter(line => (line.type === 'product' || line.type === 'material') && String(line.item_id) === String(productId))
       .reduce((sum, line) => sum + toNumber(line.quantity), 0);
@@ -789,8 +792,8 @@
         quantityEl?.focus();
         return;
       }
-      if (price <= 0 && lineType !== 'material') {
-        showBuilderError('Enter a unit price greater than zero.');
+      if (price <= 0) {
+        showBuilderError(lineType === 'material' ? 'Set a selling price above zero for this office material.' : 'Enter a unit price greater than zero.');
         priceEl?.focus();
         return;
       }
@@ -839,7 +842,7 @@
         item_id: itemId,
         description,
         quantity,
-        unit_price: lineType === 'material' ? 0 : price,
+        unit_price: price,
         unit_cost: unitCost,
       });
 
@@ -869,10 +872,10 @@
           : line.type === 'service'
             ? `${catalog?.category || 'Saved service'}`
             : 'Custom work';
-        const typeLabel = line.type === 'material' ? 'Internal material' : line.type === 'product' ? 'Product' : line.type === 'service' ? 'Service' : 'Custom';
+        const typeLabel = line.type === 'material' ? 'Sold to office' : line.type === 'product' ? 'Product' : line.type === 'service' ? 'Service' : 'Custom';
         const total = toNumber(line.quantity) * toNumber(line.unit_price);
         const priceLock = line.type === 'material' ? 'readonly tabindex="-1"' : '';
-        const priceMin = line.type === 'material' ? '0' : '0.01';
+        const priceMin = '0.01';
         return `<div class="tx-line-row" data-line-index="${index}" data-material-row="${line.type === 'material' ? '1' : '0'}">
           <div class="tx-line-main">
             <strong title="${safeText(line.description)}">${safeText(line.description)}</strong>
@@ -887,7 +890,7 @@
           <div class="tx-line-cell" data-label="Unit price">
             <input class="form-control tx-line-input" type="number" min="${priceMin}" step="0.01" inputmode="decimal" value="${safeText(line.unit_price)}" ${priceLock} data-line-row-price="${index}" aria-label="Unit price for ${safeText(line.description)}">
           </div>
-          <div class="tx-line-total" data-line-row-total="${index}">${safeText(money(total))}</div>
+          <div class="tx-line-total" data-line-row-total="${index}" title="${line.type === 'material' ? 'Internal selling value - NOT a customer charge' : 'Customer line total'}">${safeText(money(total))}</div>
           <button type="button" class="tx-remove-line" data-remove-line="${index}" aria-label="Remove ${safeText(line.description)}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M8 7l1 13h6l1-13M10 11v5M14 11v5"/></svg>
           </button>
@@ -899,13 +902,14 @@
     };
 
     const getTotals = () => {
-      const subtotal = lines.reduce((sum, line) => sum + toNumber(line.quantity) * toNumber(line.unit_price), 0);
+      const subtotal = lines.filter(line => line.type !== 'material').reduce((sum, line) => sum + toNumber(line.quantity) * toNumber(line.unit_price), 0);
+      const internalSelling = lines.filter(line => line.type === 'material').reduce((sum, line) => sum + toNumber(line.quantity) * toNumber(line.unit_price), 0);
       const cost = lines.reduce((sum, line) => sum + toNumber(line.quantity) * toNumber(line.unit_cost), 0);
       const discount = Math.max(0, toNumber(discountEl?.value));
       const total = Math.max(0, subtotal - discount);
       const payment = Math.max(0, toNumber(paymentEl?.value));
       const balance = Math.max(0, total - payment);
-      return {subtotal, cost, discount, total, payment, balance, profit: total - cost};
+      return {subtotal, internalSelling, cost, discount, total, payment, balance, profit: total - cost};
     };
 
     const updateSummary = () => {
@@ -916,6 +920,8 @@
       if (summaryBalance) summaryBalance.textContent = money(totals.balance);
       if (summaryCost) summaryCost.textContent = money(totals.cost);
       if (summaryProfit) summaryProfit.textContent = money(totals.profit);
+      if (internalSellingAmount) internalSellingAmount.textContent = money(totals.internalSelling);
+      if (internalSellingPreview) internalSellingPreview.hidden = totals.internalSelling <= 0;
       if (mobileTotal) mobileTotal.textContent = money(totals.total);
       balanceRow?.classList.toggle('is-debt', totals.balance > 0);
 
@@ -1060,7 +1066,7 @@
       if (priceInput) {
         const nextPrice = toNumber(priceInput.value);
         priceInput.classList.toggle('is-error', line.type !== 'material' && nextPrice <= 0);
-        line.unit_price = line.type === 'material' ? 0 : nextPrice;
+        line.unit_price = line.type === 'material' ? line.unit_price : nextPrice;
       }
 
       const totalNode = $(`[data-line-row-total="${index}"]`, linesEl);
@@ -1125,7 +1131,7 @@
       // performs the authoritative locked stock check again inside a DB transaction.
       let lineInvalid = false;
       lines.forEach((line, index) => {
-        let thisLineInvalid = toNumber(line.quantity) <= 0 || (line.type !== 'material' && toNumber(line.unit_price) <= 0);
+        let thisLineInvalid = toNumber(line.quantity) <= 0 || toNumber(line.unit_price) <= 0;
         if (line.type === 'product' || line.type === 'material') {
           const catalog = catalogById('product', line.item_id);
           const totalRequested = currentProductRequested(line.item_id);

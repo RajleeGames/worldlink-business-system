@@ -80,7 +80,7 @@
       </thead>
       <tbody>
         {% for line in obj.lines.all %}
-        {% if not line.product_id or line.unit_price > 0 %}
+        {% if not line.is_internal_material %}
         <tr>
           <td>
             <strong>{{ line.description }}</strong>
@@ -141,19 +141,32 @@
 {# Staff-only internal stock log: never included in customer printout. #}
 {% if material_lines %}
 <section class="panel wl-material-ledger no-print">
-  <div class="panel-head"><div><h2>Materials consumed from office stock</h2>
-    <p>Stock already purchased; this is an internal cost, not an extra amount payable by the customer.</p>
+  <div class="panel-head"><div><h2>Products sold internally to office / used for this job</h2>
+    <p>Materials are valued at your saved selling prices as INTERNAL office sales. No additional customer charge or money-account deposit. Job gross profit still deducts actual buying cost.</p>
   </div></div>
   <div class="table-wrap"><table><thead><tr><th>Material</th><th>SKU</th><th class="num">Quantity used</th>
-    {% if request.user.is_company_admin %}<th class="num">Unit buying cost</th><th class="num">Total cost</th>{% endif %}
+    {% if request.user.is_company_admin %}<th class="num">Unit selling price</th><th class="num">Internal sales value</th><th class="num">Buying cost</th><th class="num">Internal markup</th>{% endif %}
   </tr></thead><tbody>
   {% for line in material_lines %}
     <tr><td><strong>{{ line.description }}</strong></td><td>{{ line.product.sku }}</td>
     <td class="num">{{ line.quantity|floatformat:-2 }}</td>
-    {% if request.user.is_company_admin %}<td class="num">TZS {{ line.unit_cost|money }}</td>
-    <td class="num">TZS {{ line.line_cost|money }}</td>{% endif %}</tr>
+    {% if request.user.is_company_admin %}<td class="num">TZS {{ line.internal_unit_selling_price|money }}</td>
+    <td class="num">TZS {{ line.internal_selling_total|money }}</td>
+    <td class="num">TZS {{ line.line_cost|money }}</td>
+    <td class="num">TZS {{ line.internal_markup|money }}</td>{% endif %}</tr>
   {% endfor %}
   </tbody></table></div>
+  {% if request.user.is_company_admin %}
+  <div class="wl-office-reconciliation">
+    <div><span>Internal office products sold (selling value)</span><strong>TZS {{ obj.internal_office_sale_value|money }}</strong></div>
+    <div><span>Office product markup (transfer margin)</span><strong>TZS {{ obj.internal_office_markup|money }}</strong></div>
+    <div><span>Service/job profit after internal sale allocation</span><strong>TZS {{ obj.service_profit_after_internal_charge|money }}</strong></div>
+    <div><span>Combined business gross profit (unchanged)</span><strong>TZS {{ obj.gross_profit|money }}</strong></div>
+  </div>
+  <p class="wl-stock-note">Internal selling value is a transfer valuation; it is NOT extra revenue, cash collected or additional customer debt.
+  The internal markup moves profit from the job to stock sales; combined WorldLink profit stays unchanged.
+  Older zero-priced material records are estimated using today's product selling price.</p>
+  {% endif %}
 </section>
 {% endif %}
 

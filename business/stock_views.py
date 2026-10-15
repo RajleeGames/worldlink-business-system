@@ -217,7 +217,7 @@ def product_detail(request, pk):
 
     sales = list(
         TransactionLine.objects
-        .filter(product=product, unit_price__gt=0)
+        .filter(product=product, line_type=TransactionLine.LineType.PRODUCT, unit_price__gt=0)
         .exclude(
             transaction__status=Transaction.Status.VOID
         )
@@ -225,12 +225,15 @@ def product_detail(request, pk):
         .order_by("-created_at")[:12]
     )
 
-    # Zero-priced product lines are internal materials for service jobs.
+    # Internal office sales use CUSTOM + Product FK; zero-priced PRODUCT
+    # rows created in V1 remain legacy office materials.
     materials = list(
         TransactionLine.objects
-        .filter(product=product, unit_price=0, transaction__kind__in=[
+        .filter(product=product, transaction__kind__in=[
             Transaction.Kind.SERVICE, Transaction.Kind.MAINTENANCE, Transaction.Kind.PROJECT
         ])
+        .filter(Q(line_type=TransactionLine.LineType.CUSTOM) |
+                Q(line_type=TransactionLine.LineType.PRODUCT, unit_price=0))
         .exclude(transaction__status=Transaction.Status.VOID)
         .select_related("transaction")
         .order_by("-created_at")[:12]
